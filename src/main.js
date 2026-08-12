@@ -9,7 +9,7 @@ const promoBar = () => `<div class="promo">Livraison gratuite à partir de 150 $
 
 const header = () => `
 <header class="header">
-  <a href="#/" class="logo"><img src="/images/logo-lockup.png" alt="Attitude Sports" height="34"></a>
+  <a href="#/" class="logo"><img src="/images/logo-lockup.png" alt="Attitude Sports"></a>
   <nav class="nav">
     <a href="#/hommes">Hommes</a>
     <a href="#/femmes">Femmes</a>
