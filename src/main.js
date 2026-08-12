@@ -117,9 +117,8 @@ const pageHome = () => `
     </div>
   </section>
   <section class="cats">
-    ${[['hommes', 'Hommes', 'photo — homme, tenue entraînement'], ['femmes', 'Femmes', 'photo — femme, tenue course'], ['enfants', 'Enfants', "photo — jeunes, sport d'équipe"]].map(([slug, name, img]) => `
-      <a href="#/${slug}" class="cat-tile">
-        <span class="ph-label top">[ ${img} ]</span>
+    ${[['hommes', 'Hommes', '/images/V5-6008988-008_BC.png'], ['femmes', 'Femmes', '/woman.png'], ['enfants', 'Enfants', '/enfant.png']].map(([slug, name, img]) => `
+      <a href="#/${slug}" class="cat-tile" style="background-image:url('${img}')">
         <span class="cat-name">${name}</span>
       </a>`).join('')}
   </section>

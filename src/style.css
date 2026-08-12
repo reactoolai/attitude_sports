@@ -49,8 +49,9 @@ input::placeholder { color: var(--gris); }
 
 /* Tuiles catégories */
 .cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px 0; }
-.cat-tile { position: relative; height: 340px; display: flex; align-items: flex-end; overflow: hidden; }
-.cat-name { position: relative; margin: 0 0 26px 26px; background: var(--noir); color: var(--craie); font-family: var(--archivo); font-style: italic; font-weight: 900; font-size: 22px; text-transform: uppercase; padding: 10px 20px; }
+.cat-tile { position: relative; height: 340px; display: flex; align-items: flex-end; overflow: hidden; background-size: cover; background-position: center; }
+.cat-tile::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(22,22,26,.55) 0%, transparent 50%); pointer-events: none; }
+.cat-name { position: relative; z-index: 1; margin: 0 0 26px 26px; background: var(--noir); color: var(--craie); font-family: var(--archivo); font-style: italic; font-weight: 900; font-size: 22px; text-transform: uppercase; padding: 10px 20px; }
 
 /* Sections */
 .pad { padding: 64px 40px 24px; }
