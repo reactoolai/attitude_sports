@@ -39,18 +39,21 @@ const HERO_IMAGES = [
   '/images/im5.png',
 ];
 
-const heroColumn = (images, direction, delay) => `
-  <div class="hero-column ${direction}" style="--delay:${delay}s">
-    <div class="hero-track">
-      ${[...images, ...images].map((src, index) => `<img src="${src}" alt="" loading="${index < 5 ? 'eager' : 'lazy'}">`).join('')}
+const heroColumn = (fixedSrc, scrollImages) => `
+  <div class="hero-column">
+    <img class="hero-fixed" src="${fixedSrc}" alt="" loading="eager">
+    <div class="hero-scroll">
+      <div class="hero-scroll-inner">
+      ${[...scrollImages, ...scrollImages].map((src, i) => `<img src="${src}" alt="" loading="lazy">`).join('')}
+      </div>
     </div>
   </div>`;
 
 const heroGallery = () => `
   <div class="hero-gallery" aria-hidden="true">
-    ${heroColumn([HERO_IMAGES[0], HERO_IMAGES[2], HERO_IMAGES[4], HERO_IMAGES[1], HERO_IMAGES[3]], 'up', 0)}
-    ${heroColumn([HERO_IMAGES[3], HERO_IMAGES[1], HERO_IMAGES[0], HERO_IMAGES[4], HERO_IMAGES[2]], 'down', -7)}
-    ${heroColumn([HERO_IMAGES[2], HERO_IMAGES[4], HERO_IMAGES[1], HERO_IMAGES[3], HERO_IMAGES[0]], 'up', -14)}
+    ${heroColumn(HERO_IMAGES[0], [HERO_IMAGES[1], HERO_IMAGES[2], HERO_IMAGES[3], HERO_IMAGES[4]])}
+    ${heroColumn(HERO_IMAGES[2], [HERO_IMAGES[3], HERO_IMAGES[4], HERO_IMAGES[0], HERO_IMAGES[1]])}
+    ${heroColumn(HERO_IMAGES[4], [HERO_IMAGES[1], HERO_IMAGES[3], HERO_IMAGES[0], HERO_IMAGES[2]])}
   </div>`;
 
 const card = (p, big = true) => `
