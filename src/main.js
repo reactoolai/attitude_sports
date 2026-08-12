@@ -39,22 +39,23 @@ const HERO_IMAGES = [
   '/images/im5.png',
 ];
 
-const heroColumn = (fixedSrc, scrollImages) => `
-  <div class="hero-column">
-    <img class="hero-fixed" src="${fixedSrc}" alt="" loading="eager">
-    <div class="hero-scroll">
-      <div class="hero-scroll-inner">
-      ${[...scrollImages, ...scrollImages].map((src, i) => `<img src="${src}" alt="" loading="lazy">`).join('')}
-      </div>
-    </div>
-  </div>`;
-
-const heroGallery = () => `
+const heroGallery = () => {
+  const sets = [
+    [HERO_IMAGES[0], HERO_IMAGES[1], HERO_IMAGES[2]],
+    [HERO_IMAGES[3], HERO_IMAGES[4], HERO_IMAGES[0]],
+    [HERO_IMAGES[1], HERO_IMAGES[2], HERO_IMAGES[3]],
+    [HERO_IMAGES[4], HERO_IMAGES[0], HERO_IMAGES[1]],
+    [HERO_IMAGES[2], HERO_IMAGES[3], HERO_IMAGES[4]],
+  ];
+  return `
   <div class="hero-gallery" aria-hidden="true">
-    ${heroColumn(HERO_IMAGES[0], [HERO_IMAGES[1], HERO_IMAGES[2], HERO_IMAGES[3], HERO_IMAGES[4]])}
-    ${heroColumn(HERO_IMAGES[2], [HERO_IMAGES[3], HERO_IMAGES[4], HERO_IMAGES[0], HERO_IMAGES[1]])}
-    ${heroColumn(HERO_IMAGES[4], [HERO_IMAGES[1], HERO_IMAGES[3], HERO_IMAGES[0], HERO_IMAGES[2]])}
+    ${[0,1,2].map(i => `
+      <div class="hero-slot">
+        ${sets.map((s, si) => `<img class="hero-img${si === 0 ? ' active' : ''}" src="${s[i]}" alt="" loading="${si < 3 ? 'eager' : 'lazy'}">`).join('')}
+      </div>
+    `).join('')}
   </div>`;
+};
 
 const card = (p, big = true) => `
 <a href="#/produit" class="card">
@@ -267,6 +268,7 @@ function render() {
   const page = routes[path] || pageHome;
   app.innerHTML = promoBar() + header() + page() + footer();
   bind();
+  startHeroCycle();
   window.scrollTo(0, 0);
 }
 
@@ -285,6 +287,22 @@ function bind() {
   });
   const sort = document.getElementById('sort-select');
   if (sort) sort.addEventListener('change', (e) => { state.sort = e.target.value; render(); });
+}
+
+let heroTimer = null;
+function startHeroCycle() {
+  if (heroTimer) clearInterval(heroTimer);
+  let idx = 0;
+  heroTimer = setInterval(() => {
+    const slots = document.querySelectorAll('.hero-slot');
+    if (!slots.length) return;
+    idx = (idx + 1) % 5;
+    slots.forEach(slot => {
+      slot.querySelectorAll('.hero-img').forEach((img, i) => {
+        img.classList.toggle('active', i === idx);
+      });
+    });
+  }, 3500);
 }
 
 window.addEventListener('hashchange', render);
