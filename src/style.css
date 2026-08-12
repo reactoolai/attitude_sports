@@ -176,6 +176,20 @@ main.pad, div.pad { padding: 28px 40px 64px; }
 .reactool-credit:hover { color: var(--craie); }
 .reactool-credit:hover img { opacity: .78; }
 
+.footer-pay { border-top: 1px solid var(--acier); padding: 22px 40px; display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; }
+.footer-pay-label { color: var(--gris); font-size: 12px; font-weight: 300; letter-spacing: .04em; }
+.pay-icons { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pay-icon { display: inline-flex; align-items: center; justify-content: center; height: 30px; min-width: 48px; padding: 0 12px; border-radius: 5px; font-family: var(--jost); font-weight: 700; font-size: 13px; letter-spacing: .02em; white-space: nowrap; }
+.pay-visa { background: #fff; color: #1A1F71; font-style: italic; font-size: 15px; }
+.pay-mc { background: #fff; width: 48px; height: 30px; position: relative; }
+.pay-mc .mc-dot { position: absolute; top: 50%; width: 20px; height: 20px; border-radius: 50%; transform: translateY(-50%); }
+.pay-mc .mc-red { left: 10px; background: #EB001B; }
+.pay-mc .mc-yellow { left: 24px; background: #F79E1B; mix-blend-mode: multiply; }
+.pay-amex { background: #2E77BB; color: #fff; font-size: 12px; letter-spacing: .05em; }
+.pay-apple { background: #fff; color: #000; font-size: 14px; }
+.pay-google { background: #fff; color: #5F6368; font-size: 13px; font-weight: 500; }
+.pay-google .gp-blue { color: #4285F4; font-weight: 800; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1080px) {
   .g4, .g3 { grid-template-columns: repeat(2, 1fr); }

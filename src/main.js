@@ -95,6 +95,16 @@ const footer = () => `
         ${c.links.map(l => `<a href="#">${l}</a>`).join('')}
       </div>`).join('')}
   </div>
+  <div class="footer-pay">
+    <span class="footer-pay-label">Modes de paiement acceptés</span>
+    <div class="pay-icons">
+      <span class="pay-icon pay-visa" title="Visa">VISA</span>
+      <span class="pay-icon pay-mc" title="Mastercard"><span class="mc-dot mc-red"></span><span class="mc-dot mc-yellow"></span></span>
+      <span class="pay-icon pay-amex" title="American Express">AMEX</span>
+      <span class="pay-icon pay-apple" title="Apple Pay">&#63743; Pay</span>
+      <span class="pay-icon pay-google" title="Google Pay">G<span class="gp-blue">o</span>ogle Pay</span>
+    </div>
+  </div>
   <div class="footer-bottom">
     <span>© 2026 Attitude Sports. Tous droits réservés.</span>
     <div><a href="#">Confidentialité</a><a href="#">Conditions</a><a href="#">Accessibilité</a></div>
