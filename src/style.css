@@ -83,7 +83,7 @@ main.pad, div.pad { padding: 28px 40px 64px; }
 
 /* Split techno */
 .split { margin-top: 64px; background: var(--noir); display: grid; grid-template-columns: 1fr 1fr; min-height: 420px; }
-.split-ph { background: repeating-linear-gradient(45deg, #1D1D22 0 16px, #22222A 16px 32px); }
+.split-ph { background-size: contain; background-position: center; background-repeat: no-repeat; background-color: var(--noir); }
 .split-txt { padding: 64px; display: flex; flex-direction: column; justify-content: center; gap: 18px; align-items: flex-start; }
 .split-txt h2 { font-size: 40px; line-height: 1; color: var(--craie); }
 .split-txt p { color: var(--gris); font-size: 16px; font-weight: 300; line-height: 1.6; max-width: 440px; margin: 0; }

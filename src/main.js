@@ -130,7 +130,7 @@ const pageHome = () => `
     <div class="grid g4">${NEW_ARRIVALS.map(p => card(p)).join('')}</div>
   </section>
   <section class="split">
-    ${ph('visuel — textile technique en gros plan', 'split-ph')}
+    <div class="split-ph" style="background-image:url('/tof.png')"></div>
     <div class="split-txt">
       <div class="eyebrow">Technologie AS-Dry</div>
       <h2>Reste au sec.<br>Reste concentré.</h2>
