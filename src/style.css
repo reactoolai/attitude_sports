@@ -169,8 +169,12 @@ main.pad, div.pad { padding: 28px 40px 64px; }
 .footer-col-title { font-family: var(--saira); font-weight: 700; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 14px; }
 .footer-cols a { display: block; color: var(--gris); font-size: 14px; font-weight: 300; margin-bottom: 9px; }
 .footer-cols a:hover { color: var(--craie); }
-.footer-bottom { border-top: 1px solid var(--acier); padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; color: var(--gris); font-size: 13px; font-weight: 300; }
+.footer-bottom { border-top: 1px solid var(--acier); padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; color: var(--gris); font-size: 13px; font-weight: 300; gap: 20px; }
 .footer-bottom a { color: var(--gris); margin-left: 20px; }
+.reactool-credit { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; margin-left: 0 !important; }
+.reactool-credit img { width: 92px; height: auto; display: block; transition: opacity .2s ease; }
+.reactool-credit:hover { color: var(--craie); }
+.reactool-credit:hover img { opacity: .78; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1080px) {

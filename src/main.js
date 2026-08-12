@@ -98,6 +98,9 @@ const footer = () => `
   <div class="footer-bottom">
     <span>© 2026 Attitude Sports. Tous droits réservés.</span>
     <div><a href="#">Confidentialité</a><a href="#">Conditions</a><a href="#">Accessibilité</a></div>
+    <a class="reactool-credit" href="https://reactool.ai" target="_blank" rel="noopener noreferrer">
+      Propulsé par <img src="/images/reactool_(1).png" alt="Reactool AI">
+    </a>
   </div>
 </footer>`;
 
