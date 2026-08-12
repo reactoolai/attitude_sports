@@ -31,6 +31,28 @@ const header = () => `
 
 const ph = (label, cls = '') => `<div class="ph ${cls}"><span>[ ${label} ]</span></div>`;
 
+const HERO_IMAGES = [
+  '/images/im1_(1).png',
+  '/images/im2_(1).png',
+  '/images/im3_(1).png',
+  '/images/im4.png',
+  '/images/im5.png',
+];
+
+const heroColumn = (images, direction, delay) => `
+  <div class="hero-column ${direction}" style="--delay:${delay}s">
+    <div class="hero-track">
+      ${[...images, ...images].map((src, index) => `<img src="${src}" alt="" loading="${index < 5 ? 'eager' : 'lazy'}">`).join('')}
+    </div>
+  </div>`;
+
+const heroGallery = () => `
+  <div class="hero-gallery" aria-hidden="true">
+    ${heroColumn([HERO_IMAGES[0], HERO_IMAGES[2], HERO_IMAGES[4], HERO_IMAGES[1], HERO_IMAGES[3]], 'up', 0)}
+    ${heroColumn([HERO_IMAGES[3], HERO_IMAGES[1], HERO_IMAGES[0], HERO_IMAGES[4], HERO_IMAGES[2]], 'down', -7)}
+    ${heroColumn([HERO_IMAGES[2], HERO_IMAGES[4], HERO_IMAGES[1], HERO_IMAGES[3], HERO_IMAGES[0]], 'up', -14)}
+  </div>`;
+
 const card = (p, big = true) => `
 <a href="#/produit" class="card">
   <div class="card-img ${big ? '' : 'sm'}">
@@ -79,7 +101,8 @@ const footer = () => `
 const pageHome = () => `
 <main>
   <section class="hero">
-    ${ph('visuel héro — athlète en action, pleine largeur', 'hero-ph')}
+    ${heroGallery()}
+    <div class="hero-shade"></div>
     <div class="hero-inner">
       <div class="eyebrow">Collection automne 2026</div>
       <h1>Dépasse<br>tes limites</h1>
