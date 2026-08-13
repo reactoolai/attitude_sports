@@ -665,6 +665,7 @@ function adminInventory() {
         <option value="price-desc" ${state.adminSort === 'price-desc' ? 'selected' : ''}>Prix decroissant</option>
         <option value="stock" ${state.adminSort === 'stock' ? 'selected' : ''}>Stock</option>
       </select>
+      <button id="adm-export-csv" class="btn orange" style="padding:8px 16px;font-size:13px;white-space:nowrap;">Exporter CSV</button>
     </div>
     <div class="adm-table-wrap">
       <table class="adm-table">
@@ -900,6 +901,54 @@ async function handleLogin(e) {
   render();
 }
 
+function exportInventoryCSV() {
+  const products = state.adminProducts;
+  const skus = state.adminSkus;
+  const images = state.adminImages;
+  const headers = ['Reference', 'Nom', 'Categorie', 'Departement', 'Marque', 'Saison', 'Tailles', 'Couleurs', 'Prix', 'Prix suggere', 'Stock total', 'Nb SKUs', 'Image (Oui/Non)', 'Nb images'];
+  const rows = products.map(p => {
+    const pskus = skus.filter(s => s.product_id === p.id);
+    const sizes = [...new Set(pskus.map(s => s.size).filter(Boolean))].join('; ');
+    const colors = [...new Set(pskus.map(s => s.color).filter(Boolean))].join('; ');
+    const price = pskus[0] ? pskus[0].price : '';
+    const suggested = pskus[0] && pskus[0].suggested_price ? pskus[0].suggested_price : '';
+    const stock = pskus.reduce((sum, s) => sum + (s.quantity || 0), 0);
+    const imgCount = images.filter(i => i.numref === p.numref).length;
+    const hasImg = imgCount > 0 ? 'Oui' : 'Non';
+    return [
+      p.numref || '',
+      p.name || '',
+      CAT_LABELS[p.category] || p.category || '',
+      p.department || '',
+      p.supplier || '',
+      p.season || '',
+      sizes,
+      colors,
+      price,
+      suggested,
+      stock,
+      pskus.length,
+      hasImg,
+      imgCount,
+    ];
+  });
+  const csv = [headers, ...rows].map(r => r.map(c => {
+    const s = String(c == null ? '' : c);
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }).join(',')).join('\n');
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'inventaire_attitude_sports.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function bindAdminInventory() {
   const admSearch = document.getElementById('adm-search');
   if (admSearch) {
@@ -917,6 +966,8 @@ function bindAdminInventory() {
       if (p) { state.adminDetailProduct = p; render(); }
     });
   });
+  const exportBtn = document.getElementById('adm-export-csv');
+  if (exportBtn) exportBtn.addEventListener('click', exportInventoryCSV);
 }
 
 async function handleLogout(e) {
@@ -1024,6 +1075,9 @@ function bind() {
 
   const campaignForm = document.getElementById('campaign-form');
   if (campaignForm) campaignForm.addEventListener('submit', saveCampaign);
+
+  const exportCsvBtn = document.getElementById('adm-export-csv');
+  if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportInventoryCSV);
 
   // Storefront card click → PDP
   document.querySelectorAll('.card[data-id]').forEach(c => {
