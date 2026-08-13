@@ -374,7 +374,11 @@ function getNewArrivals() {
 }
 
 function stringToColor(str) {
-  return realColor(str);
+  if (!str) return '#9C9CA4';
+  const colors = ['#16161A','#FF5A1F','#2E2E34','#9C9CA4','#F2F0EB','#E91E63','#2196F3','#4CAF50','#FF9800','#9C27B0'];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
 }
 
 const filterSection = (title, items, type = 'check', accent = false) => `
@@ -791,12 +795,12 @@ function adminInventory() {
               <td>${p.department || '—'}</td>
               <td>${p.supplier || '—'}</td>
               <td>${p.season || '—'}</td>
-              <td>${colors.length > 0 ? `<div class="adm-color-cells">${colors.map(c => `<span class="adm-color-cell" title="${c}" style="background:${stringToColor(c)}"></span>`).join('')}<span class="adm-color-count">${colors.length}</span></div>` : '—'}</td>
+              <td>${colors.length > 0 ? `<div class="adm-color-cells">${colors.map(c => `<span class="adm-color-cell" title="${c}" style="background:${realColor(c)}"></span>`).join('')}<span class="adm-color-count">${colors.length}</span></div>` : '—'}</td>
               <td>${sizes.length > 0 ? `<div class="adm-size-cells">${sizes.map(s => `<span class="adm-size-cell">${s}</span>`).join('')}</div>` : '—'}</td>
               <td><span class="adm-price">${fmtPrice(getProductPrice(p))}</span></td>
               <td><span class="adm-stock adm-stock-${stockClass}">${stock}</span></td>
               <td>${skuCount}</td>
-              <td>${imgCount > 0 ? `<span class="adm-img-badge">${imgCount}</span>` : '<span class="adm-no-img">—</span>'}</td>
+              <td>${imgCount > 0 ? `<div class="adm-thumb-strip" data-id="${p.id}">${state.adminImages.filter(i => i.numref === p.numref).sort((a,b) => a.image_number - b.image_number).slice(0, 3).map(img => `<img src="${img.image_url || ''}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.style.display='none'">`).join('')}<span class="adm-img-count">${imgCount}</span></div>` : '<span class="adm-no-img">Aucune</span>'}</td>
               <td><button class="adm-view-btn" data-id="${p.id}">Details</button></td>
             </tr>`;
           }).join('')}

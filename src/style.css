@@ -398,7 +398,11 @@ body.cart-open .cart-drawer { transform: translateX(0); }
 .adm-stock-low { background: rgba(255,152,0,.12); color: #E65100; }
 .adm-stock-out { background: rgba(244,67,54,.12); color: #C62828; }
 .adm-img-badge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(33,150,243,.1); color: #2196F3; font-size: 12px; font-weight: 600; }
-.adm-no-img { color: #D0CFC8; }
+.adm-no-img { color: #D0CFC8; font-size: 12px; }
+.adm-thumb-strip { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+.adm-thumb-strip img { width: 36px; height: 36px; object-fit: contain; object-position: top center; border: 1px solid #E0DDD4; border-radius: 4px; background: #fff; }
+.adm-thumb-strip:hover img { border-color: var(--noir); }
+.adm-img-count { font-size: 11px; font-weight: 600; color: var(--gris); margin-left: 2px; }
 .adm-color-cells { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .adm-color-cell { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #E0DDD4; display: inline-block; }
 .adm-color-count { font-size: 11px; color: var(--gris); font-weight: 500; margin-left: 2px; }
