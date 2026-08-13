@@ -65,10 +65,10 @@ main.pad, div.pad { padding: 28px 40px 64px; }
 .g4 { grid-template-columns: repeat(4, 1fr); }
 .g3 { grid-template-columns: repeat(3, 1fr); }
 .card { display: block; background: #fff; }
-.card-img { height: 300px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+.card-img { height: 300px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; background: #F8F7F4; }
 .card-img.sm { height: 240px; }
+.card-img.no-img { background: repeating-linear-gradient(45deg, #E9E6DE 0 12px, #F2F0EB 12px 24px); }
 .prod-img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.prod-img-fallback { display: none; }
 .prod-thumb { width: 100%; height: 100%; object-fit: contain; display: block; }
 .prod-main { width: 100%; height: 100%; object-fit: contain; display: block; }
 .badge { position: absolute; top: 10px; left: 10px; background: var(--noir); color: var(--craie); font-family: var(--saira); font-weight: 700; font-size: 12px; letter-spacing: .08em; padding: 4px 10px; text-transform: uppercase; }

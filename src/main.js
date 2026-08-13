@@ -148,8 +148,7 @@ const heroGallery = () => {
 const card = (p, big = true) => `
 <a href="#/produit" class="card" data-id="${p.id || ''}">
   <div class="card-img ${big ? '' : 'sm'}">
-    ${p.image_url ? `<img class="prod-img" src="${p.image_url}" alt="${p.name}" referrerpolicy="no-referrer" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : '<span class="ph-label">[ photo produit ]</span>'}
-    ${p.image_url ? '<span class="ph-label prod-img-fallback" style="display:none">[ photo produit ]</span>' : ''}
+    ${p.image_url ? `<img class="prod-img" src="${p.image_url}" alt="${p.name}" referrerpolicy="no-referrer" loading="lazy" data-retry="0" onerror="if(this.dataset.retry<2){this.dataset.retry++;this.src=this.src.split('&retry=')[0]+'&retry='+this.dataset.retry;}else{this.style.display='none';this.parentElement.classList.add('no-img');}">` : '<span class="ph-label">[ photo produit ]</span>'}
     ${p.badge ? `<span class="badge ${p.badge === 'Nouveau' ? 'orange' : ''}">${p.badge}</span>` : ''}
   </div>
   <div class="card-body">
@@ -381,10 +380,10 @@ const pagePdp = () => {
   const desc = p.description_fr || p.description_web || p.description_en || '';
   const related = state.products.filter(x => x.id !== p.id && x.category === p.category).slice(0, 4).map(mapProduct);
   const galleryHtml = imgs.length > 0
-    ? `<div class="thumbs">${imgs.map((i, idx) => `<div class="thumb${idx === 0 ? ' active' : ''}" data-idx="${idx}"><img class="prod-thumb" src="${i.image_url}" alt="" referrerpolicy="no-referrer" loading="lazy"></div>`).join('')}</div>
+    ? `<div class="thumbs">${imgs.map((i, idx) => `<div class="thumb${idx === 0 ? ' active' : ''}" data-idx="${idx}"><img class="prod-thumb" src="${i.image_url}" alt="" referrerpolicy="no-referrer" loading="lazy" data-retry="0" onerror="if(this.dataset.retry<2){this.dataset.retry++;this.src=this.src+'&retry='+this.dataset.retry;}else{this.style.opacity='0.3';}"></div>`).join('')}</div>
        <div class="gallery-main">
          <button class="gal-nav gal-prev" type="button" aria-label="Photo précédente">&#8249;</button>
-         <img id="gal-main-img" class="prod-main" src="${imgs[0].image_url}" alt="${p.name}" referrerpolicy="no-referrer">
+         <img id="gal-main-img" class="prod-main" src="${imgs[0].image_url}" alt="${p.name}" referrerpolicy="no-referrer" data-retry="0" onerror="if(this.dataset.retry<2){this.dataset.retry++;this.src=this.src+'&retry='+this.dataset.retry;}">
          <button class="gal-nav gal-next" type="button" aria-label="Photo suivante">&#8250;</button>
          <span class="gal-counter" id="gal-counter">1 / ${imgs.length}</span>
        </div>`
