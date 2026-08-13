@@ -23,7 +23,7 @@ import path from "node:path";
 const args = process.argv.slice(2);
 const limitIdx = args.indexOf("--limit");
 const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : Infinity;
-const csvFile = args.find((a) => !a.startsWith("--") && a !== String(limit)) ?? "inventaire_complete 1(in).csv";
+const csvFile = args.find((a) => !a.startsWith("--") && a !== String(limit)) ?? "inventaire_complete 1.csv";
 
 const OUT_DIR = "images";
 const FAILED_FILE = "failed_urls.csv";
