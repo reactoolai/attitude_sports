@@ -1,0 +1,92 @@
+#!/usr/bin/env node
+/**
+ * Updates product_images.image_url to point to Supabase Storage.
+ * Scans images/ folder, maps each file to a (numref, image_number) pair,
+ * builds the public Supabase Storage URL, and updates the database.
+ *
+ * Usage: node update_image_sources.mjs
+ */
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { createClient } from '@supabase/supabase-js';
+
+const env = readFileSync('.env', 'utf8');
+const supabaseUrl = env.match(/VITE_SUPABASE_URL=(.+)/)?.[1]?.trim();
+const supabaseKey = env.match(/VITE_SUPABASE_ANON_KEY=(.+)/)?.[1]?.trim();
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const BUCKET = 'product-images';
+const LOCAL_DIR = 'images';
+const STORAGE_BASE = `${supabaseUrl}/storage/v1/object/public/${BUCKET}`;
+
+// Step 1: Scan local images and build (ref, imgNum) -> storageUrl map
+const urlMap = new Map();
+const refs = readdirSync(LOCAL_DIR);
+let totalFiles = 0;
+for (const ref of refs) {
+  const refPath = path.join(LOCAL_DIR, ref);
+  if (!statSync(refPath).isDirectory()) continue;
+  const files = readdirSync(refPath);
+  for (const f of files) {
+    if (f.startsWith('.')) continue;
+    const m = f.match(/^(.+)_(\d+)\./);
+    if (!m) continue;
+    const imgNum = parseInt(m[2]);
+    const storageUrl = `${STORAGE_BASE}/${ref}/${f}`;
+    urlMap.set(`${ref}_${imgNum}`, storageUrl);
+    totalFiles++;
+  }
+}
+console.log(`Found ${totalFiles} local images across ${refs.length} product folders.`);
+
+// Step 2: Fetch all product_images records
+console.log('Fetching product_images from database...');
+const allImages = [];
+let from = 0;
+while (true) {
+  const { data, error } = await supabase.from('product_images').select('id,numref,image_url,image_number').range(from, from + 999);
+  if (error) { console.error('Query error:', error); break; }
+  if (!data || data.length === 0) break;
+  allImages.push(...data);
+  if (data.length < 1000) break;
+  from += 1000;
+}
+console.log(`Found ${allImages.length} image records in database.`);
+
+// Step 3: Build update list
+const updates = [];
+let noMatch = 0;
+for (const img of allImages) {
+  const safeRef = String(img.numref).replace(/[^\w.\-]/g, '_');
+  const key = `${safeRef}_${img.image_number}`;
+  const newUrl = urlMap.get(key);
+  if (newUrl && newUrl !== img.image_url) {
+    updates.push({ id: img.id, url: newUrl });
+  } else if (!newUrl) {
+    noMatch++;
+  }
+}
+console.log(`${updates.length} records to update, ${noMatch} with no matching local file (will keep existing URL).`);
+
+if (updates.length === 0) {
+  console.log('Nothing to update. All done!');
+  process.exit(0);
+}
+
+// Step 4: Update database in batches
+console.log('Updating database...');
+let updated = 0, errors = 0;
+const BATCH = 50;
+for (let i = 0; i < updates.length; i += BATCH) {
+  const batch = updates.slice(i, i + BATCH);
+  const promises = batch.map(u =>
+    supabase.from('product_images').update({ image_url: u.url }).eq('id', u.id)
+      .then(({ error }) => {
+        if (error) { errors++; console.error(`DB err ${u.id}: ${error.message}`); }
+        else updated++;
+      })
+  );
+  await Promise.all(promises);
+  process.stdout.write(`\r${updated} updated, ${errors} errors, ${i + batch.length}/${updates.length}`);
+}
+console.log(`\nDone: ${updated} updated, ${errors} errors.`);

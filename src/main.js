@@ -1,6 +1,11 @@
 import './style.css';
 import { DEPTS, BENEFITS, FOOTER_COLS, FITS, TECHS, RATINGS } from './data.js';
 import { supabase } from './supabase.js';
+import imageManifest from './data/image_manifest.json';
+
+const manifestImages = Object.entries(imageManifest).flatMap(([numref, urls]) =>
+  urls.map((url, i) => ({ numref, image_url: url, image_number: i + 1 }))
+);
 
 const app = document.getElementById('app');
 const state = {
@@ -120,17 +125,15 @@ async function loadCampaign() {
 // ---------- Supabase product loading ----------
 async function loadProducts() {
   state.loadingProducts = true;
-  const [{ data: prods, error: pe }, { data: skus, error: se }, { data: imgs, error: ie }] = await Promise.all([
+  const [{ data: prods, error: pe }, { data: skus, error: se }] = await Promise.all([
     supabase.from('products').select('*').order('created_at', { ascending: false }).limit(10000),
     supabase.from('skus').select('id,product_id,sku_id,barcode,size,color,quantity,price,suggested_price,created_at').limit(10000),
-    supabase.from('product_images').select('*').limit(10000),
   ]);
   if (pe) console.error('loadProducts error:', pe);
   if (se) console.error('loadSkus error:', se);
-  if (ie) console.error('loadImages error:', ie);
   state.products = (prods || []).filter(p => p.numref);
   state.storeSkus = skus || [];
-  state.storeImages = imgs || [];
+  state.storeImages = manifestImages;
   if (state.storeSkus.length === 0) console.warn('No SKUs loaded — prices will show as 0');
   state.loadingProducts = false;
 }
@@ -965,17 +968,15 @@ const pageAdmin = () => {
 
 // ---------- Admin logic ----------
 async function loadAdminProducts() {
-  const [{ data: prods, error: pe }, { data: skus, error: se }, { data: imgs, error: ie }] = await Promise.all([
+  const [{ data: prods, error: pe }, { data: skus, error: se }] = await Promise.all([
     supabase.from('products').select('*').order('created_at', { ascending: false }).limit(10000),
     supabase.from('skus').select('id,product_id,sku_id,barcode,size,color,quantity,price,suggested_price,created_at').limit(10000),
-    supabase.from('product_images').select('*').limit(10000),
   ]);
   if (pe) console.error('admin products error:', pe);
   if (se) console.error('admin skus error:', se);
-  if (ie) console.error('admin images error:', ie);
   state.adminProducts = (prods || []).filter(p => p.numref);
   state.adminSkus = skus || [];
-  state.adminImages = imgs || [];
+  state.adminImages = manifestImages;
   render();
 }
 
