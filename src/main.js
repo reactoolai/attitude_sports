@@ -1,5 +1,5 @@
 import './style.css';
-import { DEPTS, BENEFITS, FOOTER_COLS, FITS, TECHS, DISCOUNTS, RATINGS } from './data.js';
+import { DEPTS, BENEFITS, FOOTER_COLS, FITS, TECHS, RATINGS } from './data.js';
 import { supabase } from './supabase.js';
 
 const app = document.getElementById('app');
@@ -53,7 +53,7 @@ const STORE_DEPT_MAP = {
   enfants: ['GARCON', 'FILLE'],
   unisexe: ['UNISEXE'],
   chaussures: [],
-  outlet: [],
+
 };
 
 function fmtPrice(n) { return parseFloat(n || 0).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' }); }
@@ -102,7 +102,6 @@ const header = () => `
     <a href="#/enfants">Enfants</a>
     <a href="#/unisexe">Unisexe</a>
     <a href="#/chaussures">Chaussures</a>
-    <a href="#/outlet" class="outlet">Outlet</a>
   </nav>
   <div class="header-right">
     <div class="search"><span>⌕</span><input id="search-input" value="${state.q}" placeholder="Rechercher"></div>
@@ -288,11 +287,6 @@ const pagePlp = (deptKey) => {
   if (state.products.length > 0) {
     if (deptKey === 'chaussures') {
       products = state.products.filter(p => (p.department || '').toUpperCase() === 'CHAUSSURE').map(mapProduct);
-    } else if (deptKey === 'outlet') {
-      products = state.products.filter(p => {
-        const skus = state.storeSkus.filter(s => s.product_id === p.id);
-        return skus.some(s => s.suggested_price && parseFloat(s.suggested_price) > parseFloat(s.price || 0));
-      }).map(mapProduct);
     } else {
       const cats = STORE_DEPT_MAP[deptKey] || [];
       products = state.products.filter(p => cats.includes((p.category || '').toUpperCase())).map(mapProduct);
@@ -335,7 +329,6 @@ const pagePlp = (deptKey) => {
         </div>
         ${filterSection('Coupe', FITS)}
         ${filterSection('Technologie', TECHS)}
-        ${deptKey === 'outlet' ? filterSection('Rabais', DISCOUNTS, 'check', true) : ''}
         ${filterSection('Évaluation', RATINGS)}
       </aside>
       <div>
@@ -1118,7 +1111,6 @@ const routes = {
   '/enfants': () => pagePlp('enfants'),
   '/unisexe': () => pagePlp('unisexe'),
   '/chaussures': () => pagePlp('chaussures'),
-  '/outlet': () => pagePlp('outlet'),
   '/produit': pagePdp,
   '/recherche': pageSearch,
   '/connexion': pageLogin,

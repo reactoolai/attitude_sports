@@ -16,7 +16,7 @@ input::placeholder { color: var(--gris); }
 .logo img { display: block; height: 56px; width: auto; filter: brightness(1.15) contrast(1.1); }
 .nav { display: flex; gap: 26px; font-family: var(--saira); font-weight: 700; font-size: 15px; letter-spacing: .1em; text-transform: uppercase; }
 .nav a { color: var(--craie); }
-.nav a:hover, .nav .outlet { color: var(--orange); }
+.nav a:hover { color: var(--orange); }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 20px; min-width: 0; flex-shrink: 1; }
 .search { background: var(--acier); border-radius: 2px; display: flex; align-items: center; gap: 8px; padding: 8px 14px; flex: 1 1 120px; min-width: 110px; max-width: 220px; color: var(--gris); }
 .search input { background: transparent; border: none; outline: none; color: var(--craie); font-family: var(--jost); font-size: 14px; font-weight: 300; width: 100%; padding: 0; }
