@@ -122,7 +122,7 @@ async function loadProducts() {
   state.loadingProducts = true;
   const [{ data: prods, error: pe }, { data: skus, error: se }, { data: imgs, error: ie }] = await Promise.all([
     supabase.from('products').select('*').order('created_at', { ascending: false }).limit(10000),
-    supabase.from('skus').select('*').limit(10000),
+    supabase.from('skus').select('id,product_id,sku_id,barcode,size,color,quantity,price,suggested_price,created_at').limit(10000),
     supabase.from('product_images').select('*').limit(10000),
   ]);
   if (pe) console.error('loadProducts error:', pe);
@@ -131,6 +131,7 @@ async function loadProducts() {
   state.products = (prods || []).filter(p => p.numref);
   state.storeSkus = skus || [];
   state.storeImages = imgs || [];
+  if (state.storeSkus.length === 0) console.warn('No SKUs loaded — prices will show as 0');
   state.loadingProducts = false;
 }
 
@@ -152,7 +153,8 @@ function mapProduct(p) {
   const sizes = [...new Set(skus.map(s => s.size).filter(Boolean))];
   const imgs = state.storeImages.filter(i => i.numref === p.numref).sort((a, b) => a.image_number - b.image_number);
   const imgUrl = imgs.length > 0 ? (imgs[0].image_url || '') : '';
-  const price = firstSku.price ? fmtPrice(firstSku.price) : '';
+  const rawPrice = firstSku.price || p.price || '';
+  const price = rawPrice ? fmtPrice(rawPrice) : '';
   const oldPrice = firstSku.suggested_price && parseFloat(firstSku.suggested_price) > parseFloat(firstSku.price || 0) ? fmtPrice(firstSku.suggested_price) : '';
   const badge = oldPrice ? 'Solde' : (p.season && p.season.includes('2026') ? 'Nouveau' : '');
   return {
@@ -160,7 +162,7 @@ function mapProduct(p) {
     cat: p.department || '',
     colors: colors.length || 1,
     price,
-    n: parseFloat(firstSku.price) || 0,
+    n: parseFloat(firstSku.price || p.price) || 0,
     oldPrice,
     badge,
     d: [p.category].filter(Boolean),
@@ -242,15 +244,25 @@ const card = (p, big = true) => `
       <div class="dots">${(p.colorsList || []).slice(0, 5).map(c => `<span style="background:${realColor(c)}" title="${c}"></span>`).join('')}${p.colors > 5 ? '<em>+</em>' : ''}<em>${p.colors} couleur${p.colors > 1 ? 's' : ''}</em></div>
       <div class="card-name-row">
         <div class="card-name">${p.name}</div>
-        <button class="card-add-btn" data-id="${p.id || ''}" title="Ajouter au panier" aria-label="Ajouter au panier">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-        </button>
       </div>
       <div class="card-cat">${p.cat}</div>
-      <div class="card-price">
-        ${p.oldPrice
-          ? `<span class="sale">${p.price}</span><span class="old">${p.oldPrice}</span>`
-          : `<span>${p.price}</span>`}
+      <div class="card-price-row">
+        <div class="card-price">
+          ${p.oldPrice
+            ? `<span class="sale">${p.price}</span><span class="old">${p.oldPrice}</span>`
+            : `<span>${p.price}</span>`}
+        </div>
+        <div class="card-qty-add">
+          <div class="card-qty">
+            <button class="card-qty-btn" data-id="${p.id || ''}" data-delta="-1" aria-label="Diminuer">−</button>
+            <span class="card-qty-val" data-id="${p.id || ''}">1</span>
+            <button class="card-qty-btn" data-id="${p.id || ''}" data-delta="1" aria-label="Augmenter">+</button>
+          </div>
+          <button class="card-add-btn" data-id="${p.id || ''}" title="Ajouter au panier" aria-label="Ajouter au panier">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            <span>Ajouter</span>
+          </button>
+        </div>
       </div>
     </div>
   </a>
@@ -474,7 +486,8 @@ const pagePdp = () => {
   const sizes = [...new Set(skus.map(s => s.size).filter(Boolean))];
   const imgs = state.storeImages.filter(i => i.numref === p.numref).sort((a, b) => a.image_number - b.image_number);
   const firstSku = skus[0] || {};
-  const price = firstSku.price ? fmtPrice(firstSku.price) : '';
+  const rawPrice = firstSku.price || p.price || '';
+  const price = rawPrice ? fmtPrice(rawPrice) : '';
   const oldPrice = firstSku.suggested_price && parseFloat(firstSku.suggested_price) > parseFloat(firstSku.price || 0) ? fmtPrice(firstSku.suggested_price) : '';
   const badge = oldPrice ? 'Solde' : (p.season && p.season.includes('2026') ? 'Nouveau' : '');
   const catLabel = CAT_LABELS[(p.category || '').toUpperCase()] || p.category || '';
@@ -954,7 +967,7 @@ const pageAdmin = () => {
 async function loadAdminProducts() {
   const [{ data: prods, error: pe }, { data: skus, error: se }, { data: imgs, error: ie }] = await Promise.all([
     supabase.from('products').select('*').order('created_at', { ascending: false }).limit(10000),
-    supabase.from('skus').select('*').limit(10000),
+    supabase.from('skus').select('id,product_id,sku_id,barcode,size,color,quantity,price,suggested_price,created_at').limit(10000),
     supabase.from('product_images').select('*').limit(10000),
   ]);
   if (pe) console.error('admin products error:', pe);
@@ -1351,6 +1364,21 @@ function bind() {
     });
   });
 
+  // Card quantity +/− buttons
+  document.querySelectorAll('.card-qty-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const delta = parseInt(btn.dataset.delta);
+      const valEl = document.querySelector(`.card-qty-val[data-id="${id}"]`);
+      if (!valEl) return;
+      let q = parseInt(valEl.textContent) || 1;
+      q = Math.max(1, Math.min(99, q + delta));
+      valEl.textContent = q;
+    });
+  });
+
   // Card add-to-cart buttons
   document.querySelectorAll('.card-add-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -1358,18 +1386,21 @@ function bind() {
       e.stopPropagation();
       const prod = state.products.find(x => x.id === btn.dataset.id);
       if (!prod) return;
+      const valEl = document.querySelector(`.card-qty-val[data-id="${btn.dataset.id}"]`);
+      const qty = valEl ? Math.max(1, parseInt(valEl.textContent) || 1) : 1;
       const mp = mapProduct(prod);
       const skus = state.storeSkus.filter(s => s.product_id === prod.id);
       const firstSku = skus[0] || {};
       addToCart({
         productId: prod.id,
         name: prod.name || 'Sans nom',
-        price: parseFloat(firstSku.price) || 0,
+        price: parseFloat(firstSku.price || prod.price) || 0,
         color: firstSku.color || '',
         size: firstSku.size || '',
         image_url: mp.image_url,
-        qty: 1,
+        qty,
       });
+      if (valEl) valEl.textContent = '1';
     });
   });
 
@@ -1440,7 +1471,7 @@ function bind() {
       addToCart({
         productId: p.id,
         name: p.name || 'Sans nom',
-        price: parseFloat(firstSku.price) || 0,
+        price: parseFloat(firstSku.price || p.price) || 0,
         color, size,
         image_url: mp.image_url,
         qty: 1,
