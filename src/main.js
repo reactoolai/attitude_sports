@@ -64,7 +64,7 @@ function mapProduct(p) {
   const colors = [...new Set(skus.map(s => s.color).filter(Boolean))];
   const sizes = [...new Set(skus.map(s => s.size).filter(Boolean))];
   const imgs = state.storeImages.filter(i => i.numref === p.numref).sort((a, b) => a.image_number - b.image_number);
-  const imgUrl = imgs.length > 0 ? imgs[0].filename : '';
+  const imgUrl = imgs.length > 0 ? (imgs[0].image_url || '') : '';
   const price = firstSku.price ? fmtPrice(firstSku.price) : '';
   const oldPrice = firstSku.suggested_price && parseFloat(firstSku.suggested_price) > parseFloat(firstSku.price || 0) ? fmtPrice(firstSku.suggested_price) : '';
   const badge = oldPrice ? 'Solde' : (p.season && p.season.includes('2026') ? 'Nouveau' : '');
@@ -380,8 +380,8 @@ const pagePdp = () => {
   const desc = p.description_fr || p.description_web || p.description_en || '';
   const related = state.products.filter(x => x.id !== p.id && x.category === p.category).slice(0, 4).map(mapProduct);
   const galleryHtml = imgs.length > 0
-    ? `<div class="thumbs">${imgs.slice(0, 4).map(i => `<div><img src="${i.filename}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`).join('')}</div>
-       <div class="gallery-main"><img src="${imgs[0].filename}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;"></div>`
+    ? `<div class="thumbs">${imgs.slice(0, 4).map(i => `<div><img src="${i.image_url}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`).join('')}</div>
+       <div class="gallery-main"><img src="${imgs[0].image_url}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;"></div>`
     : `${ph('photo produit principale', 'gallery-main')}`;
   return `
 <main class="pad">
@@ -716,6 +716,7 @@ function adminProductDetail(product) {
           ${images.length > 0
             ? images.slice(0, 8).map((img, i) => `
               <div class="adm-img-thumb" data-filename="${img.filename}">
+                <img src="${img.image_url || ''}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
                 <div class="adm-img-placeholder"><span>${i + 1}</span></div>
                 <div class="adm-img-name">${img.image_number === 1 ? 'Front' : img.image_number === 2 ? 'Back' : 'Detail ' + img.image_number}</div>
               </div>`).join('')
