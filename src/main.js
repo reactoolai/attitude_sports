@@ -1,10 +1,11 @@
 import './style.css';
-import { DEPTS, NEW_ARRIVALS, BENEFITS, FOOTER_COLS, FITS, TECHS, DISCOUNTS, RATINGS } from './data.js';
+import { DEPTS, BENEFITS, FOOTER_COLS, FITS, TECHS, DISCOUNTS, RATINGS } from './data.js';
 import { supabase } from './supabase.js';
 
 const app = document.getElementById('app');
 const state = {
-  sort: 'featured', q: '', products: [], adminProducts: [], adminSkus: [], adminImages: [],
+  sort: 'featured', q: '', products: [], storeSkus: [], storeImages: [],
+  adminProducts: [], adminSkus: [], adminImages: [],
   session: null, loadingProducts: false, campaign: null,
   adminTab: 'overview', adminFilter: { category: '', supplier: '', search: '', stock: '' },
   adminSort: 'name', adminPage: 1, adminPerPage: 20, adminDetailProduct: null,
@@ -31,27 +32,60 @@ async function loadCampaign() {
 // ---------- Supabase product loading ----------
 async function loadProducts() {
   state.loadingProducts = true;
-  const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-  if (error) { console.error('loadProducts error:', error); state.loadingProducts = false; return; }
-  state.products = data || [];
+  const [{ data: prods, error: pe }, { data: skus, error: se }, { data: imgs, error: ie }] = await Promise.all([
+    supabase.from('products').select('*').order('created_at', { ascending: false }),
+    supabase.from('skus').select('*'),
+    supabase.from('product_images').select('*'),
+  ]);
+  if (pe) console.error('loadProducts error:', pe);
+  if (se) console.error('loadSkus error:', se);
+  if (ie) console.error('loadImages error:', ie);
+  state.products = (prods || []).filter(p => p.numref);
+  state.storeSkus = skus || [];
+  state.storeImages = imgs || [];
   state.loadingProducts = false;
 }
 
+const STORE_DEPT_MAP = {
+  hommes: ['HOMME'],
+  femmes: ['FEMME'],
+  enfants: ['GARCON', 'FILLE'],
+  unisexe: ['UNISEXE'],
+  chaussures: [],
+  outlet: [],
+};
+
+function fmtPrice(n) { return parseFloat(n || 0).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' }); }
+
 function mapProduct(p) {
+  const skus = state.storeSkus.filter(s => s.product_id === p.id);
+  const firstSku = skus[0] || {};
+  const colors = [...new Set(skus.map(s => s.color).filter(Boolean))];
+  const sizes = [...new Set(skus.map(s => s.size).filter(Boolean))];
+  const imgs = state.storeImages.filter(i => i.numref === p.numref).sort((a, b) => a.image_number - b.image_number);
+  const imgUrl = imgs.length > 0 ? imgs[0].filename : '';
+  const price = firstSku.price ? fmtPrice(firstSku.price) : '';
+  const oldPrice = firstSku.suggested_price && parseFloat(firstSku.suggested_price) > parseFloat(firstSku.price || 0) ? fmtPrice(firstSku.suggested_price) : '';
+  const badge = oldPrice ? 'Solde' : (p.season && p.season.includes('2026') ? 'Nouveau' : '');
   return {
-    name: p.name,
-    cat: p.cat,
-    colors: p.colors,
-    price: p.price,
-    n: parseFloat(p.n) || 0,
-    oldPrice: p.old_price || '',
-    badge: p.badge || '',
-    d: Array.isArray(p.d) ? p.d : [],
-    rating: p.rating || '0',
-    reviews: p.reviews || 0,
-    dots: Array.isArray(p.dots) ? p.dots : [],
-    image_url: p.image_url || '',
+    name: p.name || 'Sans nom',
+    cat: p.department || '',
+    colors: colors.length || 1,
+    price,
+    n: parseFloat(firstSku.price) || 0,
+    oldPrice,
+    badge,
+    d: [p.category].filter(Boolean),
+    rating: '4.5',
+    reviews: 0,
+    dots: [],
+    image_url: imgUrl,
     id: p.id,
+    numref: p.numref,
+    category: p.category,
+    department: p.department,
+    sizes,
+    colorsList: colors,
   };
 }
 
@@ -65,6 +99,7 @@ const header = () => `
     <a href="#/hommes">Hommes</a>
     <a href="#/femmes">Femmes</a>
     <a href="#/enfants">Enfants</a>
+    <a href="#/unisexe">Unisexe</a>
     <a href="#/chaussures">Chaussures</a>
     <a href="#/outlet" class="outlet">Outlet</a>
   </nav>
@@ -110,13 +145,13 @@ const heroGallery = () => {
 };
 
 const card = (p, big = true) => `
-<a href="#/produit" class="card">
+<a href="#/produit" class="card" data-id="${p.id || ''}">
   <div class="card-img ${big ? '' : 'sm'}">
     ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;">` : '<span class="ph-label">[ photo produit ]</span>'}
     ${p.badge ? `<span class="badge ${p.badge === 'Nouveau' ? 'orange' : ''}">${p.badge}</span>` : ''}
   </div>
   <div class="card-body">
-    <div class="dots">${(p.dots || []).map(c => `<span style="background:${c}"></span>`).join('')}<em>${p.colors} couleurs</em></div>
+    <div class="dots">${(p.colorsList || []).slice(0, 5).map(c => `<span style="background:${stringToColor(c)}" title="${c}"></span>`).join('')}<em>${p.colors} couleur${p.colors > 1 ? 's' : ''}</em></div>
     <div class="card-name">${p.name}</div>
     <div class="card-cat">${p.cat}</div>
     <div class="card-price">
@@ -124,7 +159,6 @@ const card = (p, big = true) => `
         ? `<span class="sale">${p.price}</span><span class="old">${p.oldPrice}</span>`
         : `<span>${p.price}</span>`}
     </div>
-    <div class="card-rating"><span>★</span> ${p.rating} (${p.reviews} avis)</div>
   </div>
 </a>`;
 
@@ -224,9 +258,19 @@ const campaignSection = (c) => `
 </section>`;
 
 function getNewArrivals() {
-  if (state.products.length === 0) return NEW_ARRIVALS;
-  const names = ['T-shirt AS-Dry Performance', 'Legging Momentum 7/8', 'Chandail à capuchon Fortitude', 'Chaussure Vitesse 3'];
-  return state.products.filter(p => names.includes(p.name)).map(mapProduct);
+  if (state.products.length === 0) return [];
+  return state.products
+    .filter(p => p.season && p.season.includes('2026'))
+    .slice(0, 8)
+    .map(mapProduct);
+}
+
+function stringToColor(str) {
+  if (!str) return '#9C9CA4';
+  const colors = ['#16161A','#FF5A1F','#2E2E34','#9C9CA4','#F2F0EB','#E91E63','#2196F3','#4CAF50','#FF9800','#9C27B0'];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
 }
 
 const filterSection = (title, items, type = 'check', accent = false) => `
@@ -238,10 +282,21 @@ const filterSection = (title, items, type = 'check', accent = false) => `
 </div>`;
 
 const pagePlp = (deptKey) => {
-  const dept = DEPTS[deptKey];
-  let products = state.products.length > 0
-    ? state.products.filter(p => { const d = Array.isArray(p.d) ? p.d : []; return d.includes(deptKey); }).map(mapProduct)
-    : [];
+  const dept = DEPTS[deptKey] || { label: deptKey, sub: '', cats: [], sizes: [] };
+  let products = [];
+  if (state.products.length > 0) {
+    if (deptKey === 'chaussures') {
+      products = state.products.filter(p => (p.department || '').toUpperCase() === 'CHAUSSURE').map(mapProduct);
+    } else if (deptKey === 'outlet') {
+      products = state.products.filter(p => {
+        const skus = state.storeSkus.filter(s => s.product_id === p.id);
+        return skus.some(s => s.suggested_price && parseFloat(s.suggested_price) > parseFloat(s.price || 0));
+      }).map(mapProduct);
+    } else {
+      const cats = STORE_DEPT_MAP[deptKey] || [];
+      products = state.products.filter(p => cats.includes((p.category || '').toUpperCase())).map(mapProduct);
+    }
+  }
   if (state.sort === 'price-asc') products = [...products].sort((a, b) => a.n - b.n);
   if (state.sort === 'price-desc') products = [...products].sort((a, b) => b.n - a.n);
   if (state.sort === 'new') products = [...products].sort((a, b) => (b.badge === 'Nouveau' ? 1 : 0) - (a.badge === 'Nouveau' ? 1 : 0));
@@ -370,8 +425,6 @@ const ADMIN_TABS = [
 
 const CAT_LABELS = { FEMME: 'Femme', HOMME: 'Homme', FILLE: 'Fille', GARCON: 'Garçon', UNISEXE: 'Unisexe' };
 const CAT_COLORS = { FEMME: '#E91E63', HOMME: '#2196F3', FILLE: '#FF9800', GARCON: '#4CAF50', UNISEXE: '#9C27B0' };
-
-function fmtPrice(n) { return parseFloat(n || 0).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' }); }
 
 function adminSidebar() {
   return `
@@ -839,6 +892,7 @@ const routes = {
   '/hommes': () => pagePlp('hommes'),
   '/femmes': () => pagePlp('femmes'),
   '/enfants': () => pagePlp('enfants'),
+  '/unisexe': () => pagePlp('unisexe'),
   '/chaussures': () => pagePlp('chaussures'),
   '/outlet': () => pagePlp('outlet'),
   '/produit': pagePdp,

@@ -7,7 +7,8 @@ export const DEPTS = {
   femmes: { label: 'Femmes', sub: 'Du studio à la rue : leggings, brassières, vestes et plus.', cats: ['Leggings', 'Brassières', 'T-shirts', 'Chandails', 'Accessoires'], sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'] },
   enfants: { label: 'Enfants', sub: 'Pour bouger, grandir et tout donner.', cats: ['Garçons', 'Filles', "Vêtements d'équipe", 'Accessoires'], sizes: ['XS (5-6)', 'S (7-8)', 'M (10-12)', 'L (14-16)', 'XL (18-20)'] },
   chaussures: { label: 'Chaussures', sub: 'Course, entraînement, basketball — trouve ta pointure.', cats: ['Course', 'Entraînement', 'Basketball', 'Mode de vie'], sizes: ['7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '12', '13'] },
-  outlet: { label: 'Outlet', sub: "Jusqu'à 50 % de rabais sur une sélection d'articles. Quantités limitées.", cats: ['Hommes', 'Femmes', 'Enfants', 'Chaussures'], sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'] },
+  unisexe: { label: 'Unisexe', sub: 'Des essentiels pour tous, sans compromis.', cats: ['Chandails', 'Accessoires', 'Casquettes', 'Sacs'], sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'] },
+  outlet: { label: 'Outlet', sub: "Jusqu'à 50 % de rabais sur une sélection d'articles. Quantités limitées.", cats: ['Hommes', 'Femmes', 'Enfants', 'Chaussures', 'Unisexe'], sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'] },
 };
 
 export const PRODUCTS = [
@@ -43,7 +44,7 @@ export const BENEFITS = [
 ];
 
 export const FOOTER_COLS = [
-  { t: 'Magasiner', links: ['Hommes', 'Femmes', 'Enfants', 'Chaussures', 'Outlet'] },
+  { t: 'Magasiner', links: ['Hommes', 'Femmes', 'Enfants', 'Unisexe', 'Chaussures', 'Outlet'] },
   { t: 'Aide', links: ['Suivi de commande', 'Livraison', 'Retours et échanges', 'Guide des tailles', 'Nous joindre'] },
   { t: 'À propos', links: ['Notre histoire', 'Nos boutiques', 'Carrières', 'Programme équipes'] },
   { t: 'Suivez-nous', links: ['Instagram', 'Facebook', 'TikTok', 'YouTube'] },
