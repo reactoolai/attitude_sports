@@ -3,7 +3,12 @@ import { DEPTS, NEW_ARRIVALS, BENEFITS, FOOTER_COLS, FITS, TECHS, DISCOUNTS, RAT
 import { supabase } from './supabase.js';
 
 const app = document.getElementById('app');
-const state = { sort: 'featured', q: '', products: [], adminProducts: [], session: null, loadingProducts: false, campaign: null };
+const state = {
+  sort: 'featured', q: '', products: [], adminProducts: [], adminSkus: [], adminImages: [],
+  session: null, loadingProducts: false, campaign: null,
+  adminTab: 'overview', adminFilter: { category: '', supplier: '', search: '', stock: '' },
+  adminSort: 'name', adminPage: 1, adminPerPage: 20, adminDetailProduct: null,
+};
 
 const DEFAULT_CAMPAIGN = {
   eyebrow: 'Rentrée 2026',
@@ -356,174 +361,403 @@ const pageLogin = () => `
   </div>
 </main>`;
 
-// ---------- Page admin ----------
-const pageAdmin = () => {
-  if (!state.session) return pageLogin();
-  const products = state.adminProducts;
+// ---------- Page admin (dashboard moderne) ----------
+const ADMIN_TABS = [
+  { id: 'overview', label: "Vue d'ensemble", icon: 'M3 13h8V3H3v10zm10 8h8V3h-8v18zM3 21h8v-6H3v6z' },
+  { id: 'inventory', label: 'Inventaire', icon: 'M20 7L12 3 4 7v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V7z' },
+  { id: 'campaign', label: 'Campagne', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3' },
+];
+
+const CAT_LABELS = { FEMME: 'Femme', HOMME: 'Homme', FILLE: 'Fille', GARCON: 'Garçon', UNISEXE: 'Unisexe' };
+const CAT_COLORS = { FEMME: '#E91E63', HOMME: '#2196F3', FILLE: '#FF9800', GARCON: '#4CAF50', UNISEXE: '#9C27B0' };
+
+function fmtPrice(n) { return parseFloat(n || 0).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' }); }
+
+function adminSidebar() {
   return `
-<main class="admin">
-  <div class="admin-head">
-    <div>
-      <h1>Tableau de bord</h1>
-      <p class="admin-sub">${state.session.user.email}</p>
+  <aside class="adm-sidebar">
+    <div class="adm-logo"><img src="/logo.png" alt="Attitude Sports"></div>
+    <nav class="adm-nav">
+      ${ADMIN_TABS.map(t => `
+        <a href="#/admin" class="adm-nav-item ${state.adminTab === t.id ? 'active' : ''}" data-tab="${t.id}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${t.icon}"/></svg>
+          <span>${t.label}</span>
+        </a>`).join('')}
+    </nav>
+    <div class="adm-sidebar-footer">
+      <div class="adm-user">${(state.session && state.session.user && state.session.user.email) || ''}</div>
+      <a href="#" id="logout-btn" class="adm-logout">Déconnexion</a>
     </div>
-    <button class="btn orange" id="new-product-btn">+ Nouveau produit</button>
-  </div>
-  <div class="admin-stats">
-    <div class="stat-card"><span class="stat-num">${products.length}</span><span class="stat-label">Produits</span></div>
-    <div class="stat-card"><span class="stat-num">${products.filter(p => p.badge === 'Nouveau').length}</span><span class="stat-label">Nouveautés</span></div>
-    <div class="stat-card"><span class="stat-num">${products.filter(p => p.badge === 'Solde').length}</span><span class="stat-label">En solde</span></div>
-  </div>
-  <div class="admin-campaign">
-    <div class="admin-campaign-head">
-      <h2>Section campagne (accueil)</h2>
-      <p class="admin-sub">Modifie la bannière promotionnelle affichée sous le hero de la page d'accueil.</p>
+  </aside>`;
+}
+
+function adminOverview() {
+  const products = state.adminProducts;
+  const skus = state.adminSkus;
+  const totalStock = skus.reduce((sum, s) => sum + (s.quantity || 0), 0);
+  const totalValue = skus.reduce((sum, s) => sum + (s.quantity || 0) * parseFloat(s.price || 0), 0);
+  const lowStock = products.filter(p => {
+    const ps = skus.filter(s => s.product_id === p.id);
+    return ps.reduce((sum, s) => sum + (s.quantity || 0), 0) > 0 && ps.reduce((sum, s) => sum + (s.quantity || 0), 0) <= 5;
+  }).length;
+  const outOfStock = products.filter(p => {
+    const ps = skus.filter(s => s.product_id === p.id);
+    return ps.length > 0 && ps.reduce((sum, s) => sum + (s.quantity || 0), 0) === 0;
+  }).length;
+  const withImages = state.adminImages.length > 0 ? new Set(state.adminImages.map(i => i.numref)).size : 0;
+
+  const catCounts = {};
+  products.forEach(p => { const c = p.category || 'AUTRE'; catCounts[c] = (catCounts[c] || 0) + 1; });
+  const catEntries = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+  const maxCat = Math.max(...catEntries.map(e => e[1]), 1);
+
+  const supCounts = {};
+  products.forEach(p => { const s = p.supplier || 'Autre'; supCounts[s] = (supCounts[s] || 0) + 1; });
+  const supEntries = Object.entries(supCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+  return `
+  <div class="adm-content">
+    <div class="adm-topbar">
+      <h1 class="adm-title">Vue d'ensemble</h1>
+      <div class="adm-date">${new Date().toLocaleDateString('fr-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
     </div>
-    <form id="campaign-form" class="campaign-form">
-      <div class="form-row">
-        <label>Petit titre (eyebrow)<input type="text" id="cf-eyebrow" value="${(state.campaign && state.campaign.eyebrow) || ''}"></label>
-        <label>Titre principal<input type="text" id="cf-title" value="${(state.campaign && state.campaign.title) || ''}"></label>
+    <div class="adm-stats-grid">
+      <div class="adm-stat-card">
+        <div class="adm-stat-icon" style="background:rgba(33,150,243,.1);color:#2196F3">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L12 3 4 7v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V7z"/></svg>
+        </div>
+        <div class="adm-stat-info"><span class="adm-stat-num">${products.length}</span><span class="adm-stat-label">Produits</span></div>
       </div>
-      <label>Description<textarea id="cf-description" rows="2">${(state.campaign && state.campaign.description) || ''}</textarea></label>
-      <label>URL de l'image<input type="text" id="cf-image" value="${(state.campaign && state.campaign.image_url) || ''}"></label>
-      <div class="form-row">
-        <label>Texte bouton hommes<input type="text" id="cf-men-label" value="${(state.campaign && state.campaign.men_label) || ''}"></label>
-        <label>Lien bouton hommes<input type="text" id="cf-men-link" value="${(state.campaign && state.campaign.men_link) || ''}"></label>
+      <div class="adm-stat-card">
+        <div class="adm-stat-icon" style="background:rgba(76,175,80,.1);color:#4CAF50">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+        </div>
+        <div class="adm-stat-info"><span class="adm-stat-num">${skus.length}</span><span class="adm-stat-label">Variants (SKUs)</span></div>
       </div>
-      <div class="form-row">
-        <label>Texte bouton femmes<input type="text" id="cf-women-label" value="${(state.campaign && state.campaign.women_label) || ''}"></label>
-        <label>Lien bouton femmes<input type="text" id="cf-women-link" value="${(state.campaign && state.campaign.women_link) || ''}"></label>
+      <div class="adm-stat-card">
+        <div class="adm-stat-icon" style="background:rgba(255,152,0,.1);color:#FF9800">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div class="adm-stat-info"><span class="adm-stat-num">${totalStock}</span><span class="adm-stat-label">Articles en stock</span></div>
       </div>
-      <label class="checkbox-label"><input type="checkbox" id="cf-enabled" ${(!state.campaign || state.campaign.enabled !== false) ? 'checked' : ''}> Afficher la section sur la page d'accueil</label>
-      <div id="campaign-error" class="auth-error" style="display:none;"></div>
-      <button type="submit" class="btn orange">Enregistrer la campagne</button>
-    </form>
-  </div>
-  <div class="admin-table-wrap">
-    <table class="admin-table">
-      <thead>
-        <tr><th>Nom</th><th>Catégorie</th><th>Prix</th><th>Ancien prix</th><th>Badge</th><th>Départements</th><th>Évaluation</th><th>Actions</th></tr>
-      </thead>
-      <tbody>
-        ${products.map(p => `
-          <tr data-id="${p.id}">
-            <td>${p.name}</td>
-            <td>${p.cat}</td>
-            <td>${p.price}</td>
-            <td>${p.old_price || '—'}</td>
-            <td>${p.badge ? `<span class="admin-badge ${p.badge === 'Nouveau' ? 'orange' : ''}">${p.badge}</span>` : '—'}</td>
-            <td>${(Array.isArray(p.d) ? p.d : []).join(', ')}</td>
-            <td>${p.rating} (${p.reviews})</td>
-            <td class="admin-actions">
-              <button class="admin-edit" data-id="${p.id}">Modifier</button>
-              <button class="admin-delete" data-id="${p.id}">Supprimer</button>
-            </td>
-          </tr>`).join('')}
-      </tbody>
-    </table>
-  </div>
-  <div id="product-modal" class="modal" style="display:none;">
-    <div class="modal-card">
-      <div class="modal-head">
-        <h2 id="modal-title">Nouveau produit</h2>
-        <button id="modal-close" class="modal-close">&times;</button>
+      <div class="adm-stat-card">
+        <div class="adm-stat-icon" style="background:rgba(156,39,176,.1);color:#9C27B0">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        </div>
+        <div class="adm-stat-info"><span class="adm-stat-num">${fmtPrice(totalValue)}</span><span class="adm-stat-label">Valeur inventaire</span></div>
       </div>
-      <form id="product-form" class="modal-form">
-        <input type="hidden" id="pf-id">
-        <label>Nom <input type="text" id="pf-name" required></label>
-        <label>Catégorie <input type="text" id="pf-cat"></label>
+    </div>
+    <div class="adm-row">
+      <div class="adm-panel adm-panel-flex">
+        <div class="adm-panel-head"><h3>Répartition par catégorie</h3></div>
+        <div class="adm-bars">
+          ${catEntries.map(([cat, count]) => `
+            <div class="adm-bar-row">
+              <span class="adm-bar-label">${CAT_LABELS[cat] || cat}</span>
+              <div class="adm-bar-track"><div class="adm-bar-fill" style="width:${(count / maxCat * 100).toFixed(0)}%;background:${CAT_COLORS[cat] || '#666'}"></div></div>
+              <span class="adm-bar-val">${count}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="adm-panel">
+        <div class="adm-panel-head"><h3>Alertes stock</h3></div>
+        <div class="adm-alerts">
+          <div class="adm-alert-row"><span class="adm-alert-dot" style="background:#F44336"></span><span class="adm-alert-text">Rupture de stock</span><span class="adm-alert-num">${outOfStock}</span></div>
+          <div class="adm-alert-row"><span class="adm-alert-dot" style="background:#FF9800"></span><span class="adm-alert-text">Stock faible (5 ou moins)</span><span class="adm-alert-num">${lowStock}</span></div>
+          <div class="adm-alert-row"><span class="adm-alert-dot" style="background:#4CAF50"></span><span class="adm-alert-text">En stock</span><span class="adm-alert-num">${products.length - outOfStock - lowStock}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="adm-row">
+      <div class="adm-panel">
+        <div class="adm-panel-head"><h3>Top fournisseurs</h3></div>
+        <div class="adm-bars">
+          ${supEntries.map(([sup, count]) => `
+            <div class="adm-bar-row">
+              <span class="adm-bar-label">${sup}</span>
+              <div class="adm-bar-track"><div class="adm-bar-fill" style="width:${(count / products.length * 100).toFixed(0)}%;background:#2E2E34"></div></div>
+              <span class="adm-bar-val">${count}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="adm-panel">
+        <div class="adm-panel-head"><h3>Couverture images</h3></div>
+        <div class="adm-img-coverage">
+          <div class="adm-coverage-ring">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="#E9E6DE" stroke-width="10"/>
+              <circle cx="60" cy="60" r="50" fill="none" stroke="#FF5A1F" stroke-width="10" stroke-linecap="round"
+                stroke-dasharray="${2 * Math.PI * 50}" stroke-dashoffset="${2 * Math.PI * 50 * (1 - (withImages / Math.max(products.length, 1)))}"
+                transform="rotate(-90 60 60)"/>
+            </svg>
+            <div class="adm-coverage-num">${Math.round(withImages / Math.max(products.length, 1) * 100)}%</div>
+          </div>
+          <div class="adm-coverage-text">
+            <span><strong>${withImages}</strong> produits avec images</span>
+            <span><strong>${products.length - withImages}</strong> sans images</span>
+            <span><strong>${state.adminImages.length}</strong> images au total</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function getProductPrice(p) {
+  const sku = state.adminSkus.find(s => s.product_id === p.id);
+  return sku ? sku.price : 0;
+}
+function getProductStock(p) {
+  return state.adminSkus.filter(s => s.product_id === p.id).reduce((sum, s) => sum + (s.quantity || 0), 0);
+}
+
+function adminInventory() {
+  const f = state.adminFilter;
+  let products = [...state.adminProducts];
+
+  if (f.search) {
+    const q = f.search.toLowerCase();
+    products = products.filter(p =>
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.numref || '').toLowerCase().includes(q) ||
+      (p.supplier || '').toLowerCase().includes(q)
+    );
+  }
+  if (f.category) products = products.filter(p => p.category === f.category);
+  if (f.supplier) products = products.filter(p => p.supplier === f.supplier);
+  if (f.stock === 'low') products = products.filter(p => {
+    const tot = getProductStock(p);
+    return tot > 0 && tot <= 5;
+  });
+  if (f.stock === 'out') products = products.filter(p => {
+    const ps = state.adminSkus.filter(s => s.product_id === p.id);
+    return ps.length > 0 && ps.every(s => (s.quantity || 0) === 0);
+  });
+
+  if (state.adminSort === 'name') products.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  if (state.adminSort === 'price-asc') products.sort((a, b) => (parseFloat(getProductPrice(a)) || 0) - (parseFloat(getProductPrice(b)) || 0));
+  if (state.adminSort === 'price-desc') products.sort((a, b) => (parseFloat(getProductPrice(b)) || 0) - (parseFloat(getProductPrice(a)) || 0));
+  if (state.adminSort === 'stock') products.sort((a, b) => getProductStock(b) - getProductStock(a));
+
+  const totalPages = Math.ceil(products.length / state.adminPerPage);
+  const page = Math.min(state.adminPage, totalPages || 1);
+  const start = (page - 1) * state.adminPerPage;
+  const pageProducts = products.slice(start, start + state.adminPerPage);
+
+  const suppliers = [...new Set(state.adminProducts.map(p => p.supplier).filter(Boolean))].sort();
+  const categories = [...new Set(state.adminProducts.map(p => p.category).filter(Boolean))].sort();
+
+  return `
+  <div class="adm-content">
+    <div class="adm-topbar">
+      <h1 class="adm-title">Inventaire</h1>
+      <div class="adm-count-pill">${products.length} produits</div>
+    </div>
+    <div class="adm-toolbar">
+      <div class="adm-search-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="adm-search" placeholder="Rechercher par nom, ref. ou fournisseur..." value="${f.search || ''}">
+      </div>
+      <select id="adm-filter-cat" class="adm-select">
+        <option value="">Toutes categories</option>
+        ${categories.map(c => `<option value="${c}" ${f.category === c ? 'selected' : ''}>${CAT_LABELS[c] || c}</option>`).join('')}
+      </select>
+      <select id="adm-filter-sup" class="adm-select">
+        <option value="">Tous fournisseurs</option>
+        ${suppliers.map(s => `<option value="${s}" ${f.supplier === s ? 'selected' : ''}>${s}</option>`).join('')}
+      </select>
+      <select id="adm-filter-stock" class="adm-select">
+        <option value="">Tout le stock</option>
+        <option value="low" ${f.stock === 'low' ? 'selected' : ''}>Stock faible</option>
+        <option value="out" ${f.stock === 'out' ? 'selected' : ''}>Rupture</option>
+      </select>
+      <select id="adm-sort" class="adm-select">
+        <option value="name" ${state.adminSort === 'name' ? 'selected' : ''}>Trier : Nom</option>
+        <option value="price-asc" ${state.adminSort === 'price-asc' ? 'selected' : ''}>Prix croissant</option>
+        <option value="price-desc" ${state.adminSort === 'price-desc' ? 'selected' : ''}>Prix decroissant</option>
+        <option value="stock" ${state.adminSort === 'stock' ? 'selected' : ''}>Stock</option>
+      </select>
+    </div>
+    <div class="adm-table-wrap">
+      <table class="adm-table">
+        <thead>
+          <tr>
+            <th>Produit</th><th>Ref.</th><th>Categorie</th><th>Dept.</th><th>Fournisseur</th><th>Saison</th><th>Prix</th><th>Stock</th><th>SKUs</th><th>Img</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${pageProducts.map(p => {
+            const stock = getProductStock(p);
+            const skuCount = state.adminSkus.filter(s => s.product_id === p.id).length;
+            const imgCount = state.adminImages.filter(i => i.numref === p.numref).length;
+            const stockClass = stock === 0 ? 'out' : stock <= 5 ? 'low' : 'ok';
+            return `
+            <tr class="adm-row-click" data-id="${p.id}">
+              <td><div class="adm-prod-cell"><span class="adm-prod-name">${p.name || '—'}</span></div></td>
+              <td><span class="adm-ref">${p.numref || '—'}</span></td>
+              <td>${p.category ? `<span class="adm-cat-tag" style="background:${CAT_COLORS[p.category] || '#666'}">${CAT_LABELS[p.category] || p.category}</span>` : '—'}</td>
+              <td>${p.department || '—'}</td>
+              <td>${p.supplier || '—'}</td>
+              <td>${p.season || '—'}</td>
+              <td><span class="adm-price">${fmtPrice(getProductPrice(p))}</span></td>
+              <td><span class="adm-stock adm-stock-${stockClass}">${stock}</span></td>
+              <td>${skuCount}</td>
+              <td>${imgCount > 0 ? `<span class="adm-img-badge">${imgCount}</span>` : '<span class="adm-no-img">—</span>'}</td>
+              <td><button class="adm-view-btn" data-id="${p.id}">Details</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${totalPages > 1 ? `
+    <div class="adm-pagination">
+      ${page > 1 ? `<button class="adm-page-btn" data-page="${page - 1}">&larr;</button>` : ''}
+      <span class="adm-page-info">Page ${page} / ${totalPages}</span>
+      ${page < totalPages ? `<button class="adm-page-btn" data-page="${page + 1}">&rarr;</button>` : ''}
+    </div>` : ''}
+  </div>`;
+}
+
+function adminProductDetail(product) {
+  const skus = state.adminSkus.filter(s => s.product_id === product.id);
+  const images = state.adminImages.filter(i => i.numref === product.numref).sort((a, b) => a.image_number - b.image_number);
+  const totalStock = skus.reduce((sum, s) => sum + (s.quantity || 0), 0);
+  const totalValue = skus.reduce((sum, s) => sum + (s.quantity || 0) * parseFloat(s.price || 0), 0);
+  const sizes = [...new Set(skus.map(s => s.size).filter(Boolean))];
+  const colors = [...new Set(skus.map(s => s.color).filter(Boolean))];
+
+  return `
+  <div class="adm-content">
+    <div class="adm-topbar">
+      <div class="adm-back-row">
+        <button class="adm-back-btn" id="adm-back">&larr; Retour</button>
+        <h1 class="adm-title">${product.name || 'Produit'}</h1>
+      </div>
+      <span class="adm-ref-tag">Ref. ${product.numref || ''}</span>
+    </div>
+    <div class="adm-detail-grid">
+      <div class="adm-panel">
+        <div class="adm-panel-head"><h3>Images (${images.length})</h3></div>
+        <div class="adm-img-grid">
+          ${images.length > 0
+            ? images.slice(0, 8).map((img, i) => `
+              <div class="adm-img-thumb" data-filename="${img.filename}">
+                <div class="adm-img-placeholder"><span>${i + 1}</span></div>
+                <div class="adm-img-name">${img.image_number === 1 ? 'Front' : img.image_number === 2 ? 'Back' : 'Detail ' + img.image_number}</div>
+              </div>`).join('')
+            : '<div class="adm-no-images">Aucune image pour ce produit</div>'}
+        </div>
+      </div>
+      <div class="adm-panel">
+        <div class="adm-panel-head"><h3>Informations</h3></div>
+        <div class="adm-info-grid">
+          <div class="adm-info-item"><span class="adm-info-label">Categorie</span><span class="adm-info-val">${CAT_LABELS[product.category] || product.category || '—'}</span></div>
+          <div class="adm-info-item"><span class="adm-info-label">Departement</span><span class="adm-info-val">${product.department || '—'}</span></div>
+          <div class="adm-info-item"><span class="adm-info-label">Sous-dept.</span><span class="adm-info-val">${product.sub_department || '—'}</span></div>
+          <div class="adm-info-item"><span class="adm-info-label">Fournisseur</span><span class="adm-info-val">${product.supplier || '—'}</span></div>
+          <div class="adm-info-item"><span class="adm-info-label">Saison</span><span class="adm-info-val">${product.season || '—'}</span></div>
+          <div class="adm-info-item"><span class="adm-info-label">TPS / TVQ</span><span class="adm-info-val">${product.tax_tps || 5}% / ${product.tax_tvq || 9.975}%</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="adm-row">
+      <div class="adm-panel adm-panel-flex">
+        <div class="adm-panel-head">
+          <h3>Stock par variant (${skus.length} SKUs)</h3>
+          <div class="adm-stock-summary">
+            <span class="adm-stock-tag">Total: ${totalStock}</span>
+            <span class="adm-stock-tag">Valeur: ${fmtPrice(totalValue)}</span>
+          </div>
+        </div>
+        <div class="adm-sku-table-wrap">
+          <table class="adm-sku-table">
+            <thead><tr><th>Taille</th><th>Couleur</th><th>Code-barres</th><th>Qte</th><th>Prix</th><th>Prix sugg.</th></tr></thead>
+            <tbody>
+              ${skus.map(s => `
+                <tr>
+                  <td>${s.size || '—'}</td>
+                  <td>${s.color || '—'}</td>
+                  <td><span class="adm-barcode">${s.barcode || '—'}</span></td>
+                  <td><span class="adm-stock adm-stock-${(s.quantity || 0) === 0 ? 'out' : (s.quantity || 0) <= 5 ? 'low' : 'ok'}">${s.quantity || 0}</span></td>
+                  <td>${fmtPrice(s.price)}</td>
+                  <td>${s.suggested_price ? fmtPrice(s.suggested_price) : '—'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    ${sizes.length || colors.length ? `
+    <div class="adm-row">
+      ${sizes.length ? `<div class="adm-panel"><div class="adm-panel-head"><h3>Tailles (${sizes.length})</h3></div><div class="adm-chips">${sizes.map(s => `<span class="adm-chip">${s}</span>`).join('')}</div></div>` : ''}
+      ${colors.length ? `<div class="adm-panel"><div class="adm-panel-head"><h3>Couleurs (${colors.length})</h3></div><div class="adm-chips">${colors.map(c => `<span class="adm-chip">${c}</span>`).join('')}</div></div>` : ''}
+    </div>` : ''}
+  </div>`;
+}
+
+function adminCampaign() {
+  return `
+  <div class="adm-content">
+    <div class="adm-topbar"><h1 class="adm-title">Campagne d'accueil</h1></div>
+    <div class="adm-panel adm-campaign-panel">
+      <div class="adm-campaign-head">
+        <h3>Section campagne (accueil)</h3>
+        <p class="adm-sub">Modifie la banniere promotionnelle affichee sous le hero de la page d'accueil.</p>
+      </div>
+      <form id="campaign-form" class="campaign-form">
         <div class="form-row">
-          <label>Prix <input type="text" id="pf-price" placeholder="34,99 $"></label>
-          <label>Ancien prix <input type="text" id="pf-old-price" placeholder="44,99 $"></label>
+          <label>Petit titre (eyebrow)<input type="text" id="cf-eyebrow" value="${(state.campaign && state.campaign.eyebrow) || ''}"></label>
+          <label>Titre principal<input type="text" id="cf-title" value="${(state.campaign && state.campaign.title) || ''}"></label>
+        </div>
+        <label>Description<textarea id="cf-description" rows="2">${(state.campaign && state.campaign.description) || ''}</textarea></label>
+        <label>URL de l'image<input type="text" id="cf-image" value="${(state.campaign && state.campaign.image_url) || ''}"></label>
+        <div class="form-row">
+          <label>Texte bouton hommes<input type="text" id="cf-men-label" value="${(state.campaign && state.campaign.men_label) || ''}"></label>
+          <label>Lien bouton hommes<input type="text" id="cf-men-link" value="${(state.campaign && state.campaign.men_link) || ''}"></label>
         </div>
         <div class="form-row">
-          <label>Badge <select id="pf-badge"><option value="">Aucun</option><option value="Nouveau">Nouveau</option><option value="Solde">Solde</option></select></label>
-          <label>Couleurs (nombre) <input type="number" id="pf-colors" min="1" value="1"></label>
+          <label>Texte bouton femmes<input type="text" id="cf-women-label" value="${(state.campaign && state.campaign.women_label) || ''}"></label>
+          <label>Lien bouton femmes<input type="text" id="cf-women-link" value="${(state.campaign && state.campaign.women_link) || ''}"></label>
         </div>
-        <label>Départements (séparés par virgules) <input type="text" id="pf-depts" placeholder="hommes, femmes"></label>
-        <label>Couleurs (hex séparés par virgules) <input type="text" id="pf-dots" placeholder="#16161A, #FF5A1F"></label>
-        <div class="form-row">
-          <label>Évaluation <input type="text" id="pf-rating" placeholder="4.7"></label>
-          <label>Avis (nombre) <input type="number" id="pf-reviews" min="0" value="0"></label>
-        </div>
-        <label>URL d'image (optionnel) <input type="text" id="pf-image" placeholder="/images/..."></label>
-        <div class="modal-actions">
-          <button type="button" class="btn ghost" id="modal-cancel">Annuler</button>
-          <button type="submit" class="btn orange">Enregistrer</button>
-        </div>
+        <label class="checkbox-label"><input type="checkbox" id="cf-enabled" ${(!state.campaign || state.campaign.enabled !== false) ? 'checked' : ''}> Afficher la section sur la page d'accueil</label>
+        <div id="campaign-error" class="auth-error" style="display:none;"></div>
+        <button type="submit" class="btn orange">Enregistrer la campagne</button>
       </form>
     </div>
-  </div>
-</main>`;
+  </div>`;
+}
+
+const pageAdmin = () => {
+  if (!state.session) return pageLogin();
+  let content;
+  if (state.adminDetailProduct) {
+    content = adminProductDetail(state.adminDetailProduct);
+  } else if (state.adminTab === 'overview') {
+    content = adminOverview();
+  } else if (state.adminTab === 'inventory') {
+    content = adminInventory();
+  } else if (state.adminTab === 'campaign') {
+    content = adminCampaign();
+  } else {
+    content = adminOverview();
+  }
+  return `<main class="adm-layout">${adminSidebar()}${content}</main>`;
 };
 
 // ---------- Admin logic ----------
 async function loadAdminProducts() {
-  const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-  if (error) { console.error('admin load error:', error); return; }
-  state.adminProducts = data || [];
+  const [{ data: prods, error: pe }, { data: skus, error: se }, { data: imgs, error: ie }] = await Promise.all([
+    supabase.from('products').select('*').order('created_at', { ascending: false }),
+    supabase.from('skus').select('*'),
+    supabase.from('product_images').select('*'),
+  ]);
+  if (pe) console.error('admin products error:', pe);
+  if (se) console.error('admin skus error:', se);
+  if (ie) console.error('admin images error:', ie);
+  state.adminProducts = (prods || []).filter(p => p.numref);
+  state.adminSkus = skus || [];
+  state.adminImages = imgs || [];
   render();
-}
-
-function openProductModal(product) {
-  const modal = document.getElementById('product-modal');
-  const title = document.getElementById('modal-title');
-  title.textContent = product ? 'Modifier le produit' : 'Nouveau produit';
-  document.getElementById('pf-id').value = product ? product.id : '';
-  document.getElementById('pf-name').value = product ? product.name : '';
-  document.getElementById('pf-cat').value = product ? product.cat : '';
-  document.getElementById('pf-price').value = product ? product.price : '';
-  document.getElementById('pf-old-price').value = product ? (product.old_price || '') : '';
-  document.getElementById('pf-badge').value = product ? (product.badge || '') : '';
-  document.getElementById('pf-colors').value = product ? product.colors : 1;
-  document.getElementById('pf-depts').value = product ? (Array.isArray(product.d) ? product.d.join(', ') : '') : '';
-  document.getElementById('pf-dots').value = product ? (Array.isArray(product.dots) ? product.dots.join(', ') : '') : '';
-  document.getElementById('pf-rating').value = product ? product.rating : '';
-  document.getElementById('pf-reviews').value = product ? product.reviews : 0;
-  document.getElementById('pf-image').value = product ? (product.image_url || '') : '';
-  modal.style.display = 'flex';
-}
-
-function closeProductModal() {
-  document.getElementById('product-modal').style.display = 'none';
-}
-
-async function saveProduct(e) {
-  e.preventDefault();
-  const id = document.getElementById('pf-id').value;
-  const name = document.getElementById('pf-name').value.trim();
-  const cat = document.getElementById('pf-cat').value.trim();
-  const price = document.getElementById('pf-price').value.trim();
-  const n = parseFloat(price.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-  const old_price = document.getElementById('pf-old-price').value.trim();
-  const badge = document.getElementById('pf-badge').value;
-  const colors = parseInt(document.getElementById('pf-colors').value) || 1;
-  const d = document.getElementById('pf-depts').value.split(',').map(s => s.trim()).filter(Boolean);
-  const dots = document.getElementById('pf-dots').value.split(',').map(s => s.trim()).filter(Boolean);
-  const rating = document.getElementById('pf-rating').value.trim() || '0';
-  const reviews = parseInt(document.getElementById('pf-reviews').value) || 0;
-  const image_url = document.getElementById('pf-image').value.trim();
-
-  const payload = { name, cat, price, n, old_price, badge, colors, d, dots, rating, reviews, image_url };
-
-  if (id) {
-    const { error } = await supabase.from('products').update(payload).eq('id', id);
-    if (error) { alert('Erreur lors de la modification: ' + error.message); return; }
-  } else {
-    const { error } = await supabase.from('products').insert(payload);
-    if (error) { alert('Erreur lors de l\'ajout: ' + error.message); return; }
-  }
-  closeProductModal();
-  await loadAdminProducts();
-  await loadProducts();
-}
-
-async function deleteProduct(id) {
-  if (!confirm('Supprimer ce produit ?')) return;
-  const { error } = await supabase.from('products').delete().eq('id', id);
-  if (error) { alert('Erreur: ' + error.message); return; }
-  await loadAdminProducts();
-  await loadProducts();
 }
 
 async function saveCampaign(e) {
@@ -570,6 +804,25 @@ async function handleLogin(e) {
   location.hash = '#/admin';
   await loadAdminProducts();
   render();
+}
+
+function bindAdminInventory() {
+  const admSearch = document.getElementById('adm-search');
+  if (admSearch) {
+    admSearch.addEventListener('input', (e) => {
+      state.adminFilter.search = e.target.value;
+      state.adminPage = 1;
+      const content = document.querySelector('.adm-content');
+      if (content) content.outerHTML = adminInventory();
+      bindAdminInventory();
+    });
+  }
+  document.querySelectorAll('.adm-view-btn, .adm-row-click').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = state.adminProducts.find(x => x.id === btn.dataset.id);
+      if (p) { state.adminDetailProduct = p; render(); }
+    });
+  });
 }
 
 async function handleLogout(e) {
@@ -627,25 +880,50 @@ function bind() {
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
 
-  const newBtn = document.getElementById('new-product-btn');
-  if (newBtn) newBtn.addEventListener('click', () => openProductModal(null));
-
-  document.querySelectorAll('.admin-edit').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const p = state.adminProducts.find(x => x.id === btn.dataset.id);
-      if (p) openProductModal(p);
+  // Admin tab navigation
+  document.querySelectorAll('.adm-nav-item').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      state.adminTab = btn.dataset.tab;
+      state.adminDetailProduct = null;
+      render();
     });
   });
-  document.querySelectorAll('.admin-delete').forEach(btn => {
-    btn.addEventListener('click', () => deleteProduct(btn.dataset.id));
-  });
 
-  const modalClose = document.getElementById('modal-close');
-  if (modalClose) modalClose.addEventListener('click', closeProductModal);
-  const modalCancel = document.getElementById('modal-cancel');
-  if (modalCancel) modalCancel.addEventListener('click', closeProductModal);
-  const productForm = document.getElementById('product-form');
-  if (productForm) productForm.addEventListener('submit', saveProduct);
+  // Admin inventory filters
+  const admSearch = document.getElementById('adm-search');
+  if (admSearch) {
+    admSearch.addEventListener('input', (e) => {
+      state.adminFilter.search = e.target.value;
+      state.adminPage = 1;
+      const content = document.querySelector('.adm-content');
+      if (content) content.outerHTML = adminInventory();
+      bindAdminInventory();
+    });
+  }
+  const admFilterCat = document.getElementById('adm-filter-cat');
+  if (admFilterCat) admFilterCat.addEventListener('change', (e) => { state.adminFilter.category = e.target.value; state.adminPage = 1; render(); });
+  const admFilterSup = document.getElementById('adm-filter-sup');
+  if (admFilterSup) admFilterSup.addEventListener('change', (e) => { state.adminFilter.supplier = e.target.value; state.adminPage = 1; render(); });
+  const admFilterStock = document.getElementById('adm-filter-stock');
+  if (admFilterStock) admFilterStock.addEventListener('change', (e) => { state.adminFilter.stock = e.target.value; state.adminPage = 1; render(); });
+  const admSort = document.getElementById('adm-sort');
+  if (admSort) admSort.addEventListener('change', (e) => { state.adminSort = e.target.value; render(); });
+
+  // Admin product detail view
+  document.querySelectorAll('.adm-view-btn, .adm-row-click').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = state.adminProducts.find(x => x.id === btn.dataset.id);
+      if (p) { state.adminDetailProduct = p; render(); }
+    });
+  });
+  const admBack = document.getElementById('adm-back');
+  if (admBack) admBack.addEventListener('click', () => { state.adminDetailProduct = null; render(); });
+
+  // Admin pagination
+  document.querySelectorAll('.adm-page-btn').forEach(btn => {
+    btn.addEventListener('click', () => { state.adminPage = parseInt(btn.dataset.page); render(); });
+  });
 
   const campaignForm = document.getElementById('campaign-form');
   if (campaignForm) campaignForm.addEventListener('submit', saveCampaign);
