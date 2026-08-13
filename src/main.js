@@ -7,7 +7,7 @@ const state = {
   sort: 'featured', q: '', products: [], storeSkus: [], storeImages: [],
   adminProducts: [], adminSkus: [], adminImages: [],
   session: null, loadingProducts: false, campaign: null,
-  adminTab: 'overview', adminFilter: { category: '', supplier: '', search: '', stock: '' },
+  adminTab: 'overview', adminFilter: { category: '', supplier: '', search: '', stock: '', photo: '' },
   adminSort: 'name', adminPage: 1, adminPerPage: 20, adminDetailProduct: null,
   selectedProductId: null,
 };
@@ -148,7 +148,7 @@ const heroGallery = () => {
 const card = (p, big = true) => `
 <a href="#/produit" class="card" data-id="${p.id || ''}">
   <div class="card-img ${big ? '' : 'sm'}">
-    ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='<span class=\"ph-label\">[ photo produit ]</span>'">` : '<span class="ph-label">[ photo produit ]</span>'}
+    ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;" onerror="this.remove()">` : '<span class="ph-label">[ photo produit ]</span>'}
     ${p.badge ? `<span class="badge ${p.badge === 'Nouveau' ? 'orange' : ''}">${p.badge}</span>` : ''}
   </div>
   <div class="card-body">
@@ -614,6 +614,8 @@ function adminInventory() {
     const ps = state.adminSkus.filter(s => s.product_id === p.id);
     return ps.length > 0 && ps.every(s => (s.quantity || 0) === 0);
   });
+  if (f.photo === 'with') products = products.filter(p => state.adminImages.some(i => i.numref === p.numref));
+  if (f.photo === 'without') products = products.filter(p => !state.adminImages.some(i => i.numref === p.numref));
 
   if (state.adminSort === 'name') products.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   if (state.adminSort === 'price-asc') products.sort((a, b) => (parseFloat(getProductPrice(a)) || 0) - (parseFloat(getProductPrice(b)) || 0));
@@ -651,6 +653,11 @@ function adminInventory() {
         <option value="">Tout le stock</option>
         <option value="low" ${f.stock === 'low' ? 'selected' : ''}>Stock faible</option>
         <option value="out" ${f.stock === 'out' ? 'selected' : ''}>Rupture</option>
+      </select>
+      <select id="adm-filter-photo" class="adm-select">
+        <option value="">Toutes photos</option>
+        <option value="with" ${f.photo === 'with' ? 'selected' : ''}>Avec photos</option>
+        <option value="without" ${f.photo === 'without' ? 'selected' : ''}>Sans photos</option>
       </select>
       <select id="adm-sort" class="adm-select">
         <option value="name" ${state.adminSort === 'name' ? 'selected' : ''}>Trier : Nom</option>
@@ -995,6 +1002,8 @@ function bind() {
   if (admFilterSup) admFilterSup.addEventListener('change', (e) => { state.adminFilter.supplier = e.target.value; state.adminPage = 1; render(); });
   const admFilterStock = document.getElementById('adm-filter-stock');
   if (admFilterStock) admFilterStock.addEventListener('change', (e) => { state.adminFilter.stock = e.target.value; state.adminPage = 1; render(); });
+  const admFilterPhoto = document.getElementById('adm-filter-photo');
+  if (admFilterPhoto) admFilterPhoto.addEventListener('change', (e) => { state.adminFilter.photo = e.target.value; state.adminPage = 1; render(); });
   const admSort = document.getElementById('adm-sort');
   if (admSort) admSort.addEventListener('change', (e) => { state.adminSort = e.target.value; render(); });
 
