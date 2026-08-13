@@ -321,6 +321,10 @@ body.cart-open .cart-drawer { transform: translateX(0); }
 .auth-form label { display: flex; flex-direction: column; gap: 6px; font-family: var(--saira); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--noir); }
 .auth-form input { font-family: var(--jost); font-weight: 300; font-size: 15px; border: 1px solid var(--gris); padding: 12px 14px; text-transform: none; letter-spacing: 0; }
 .auth-form input:focus { outline: none; border-color: var(--orange); }
+.pass-wrap { position: relative; display: flex; align-items: center; }
+.pass-wrap input { flex: 1; padding-right: 44px; }
+.toggle-pass { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--gris); padding: 4px; display: flex; align-items: center; justify-content: center; }
+.toggle-pass:hover { color: var(--noir); }
 .auth-error { color: #c62828; font-size: 14px; font-weight: 400; }
 
 /* ---------- Admin dashboard moderne ---------- */
