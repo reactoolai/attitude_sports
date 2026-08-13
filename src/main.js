@@ -10,7 +10,93 @@ const state = {
   adminTab: 'overview', adminFilter: { category: '', supplier: '', search: '', stock: '', photo: '' },
   adminSort: 'name', adminPage: 1, adminPerPage: 20, adminDetailProduct: null,
   selectedProductId: null,
+  cart: loadCart(),
+  selectedColor: null, selectedSize: null,
 };
+
+const COLOR_MAP = {
+  NOIR: '#16161A', BLANC: '#F2F0EB', BLEU: '#2196F3', GRIS: '#9C9CA4', VERT: '#4CAF50',
+  ROUGE: '#F44336', ROSE: '#E91E63', ORANGE: '#FF5A1F', BORDEAUX: '#8B0000', BRUN: '#795548',
+  MARINE: '#1A237E', KAKI: '#827717', BEIGE: '#D4B996', CREME: '#FFF8E1', OLIVE: '#558B2F',
+  JAUNE: '#FFC107', VIOLET: '#9C27B0', TURQUOISE: '#26A69A', ARGENT: '#B0BEC5', DORE: '#C5A05A',
+  MULTI: 'linear-gradient(135deg,#FF5A1F,#2196F3,#4CAF50)',
+};
+
+function realColor(name) {
+  if (!name) return '#9C9CA4';
+  const upper = name.toUpperCase().trim();
+  if (COLOR_MAP[upper]) return COLOR_MAP[upper];
+  for (const key of Object.keys(COLOR_MAP)) {
+    if (upper.includes(key) || key.includes(upper)) return COLOR_MAP[key];
+  }
+  return stringToColor(name);
+}
+
+function loadCart() {
+  try { return JSON.parse(localStorage.getItem('as_cart') || '[]'); } catch { return []; }
+}
+function saveCart() {
+  try { localStorage.setItem('as_cart', JSON.stringify(state.cart)); } catch {}
+}
+function cartCount() { return state.cart.reduce((s, i) => s + i.qty, 0); }
+function cartTotal() { return state.cart.reduce((s, i) => s + i.qty * i.price, 0); }
+function addToCart(item) {
+  const existing = state.cart.find(i => i.productId === item.productId && i.color === item.color && i.size === item.size);
+  if (existing) existing.qty += 1;
+  else state.cart.push({ ...item, qty: 1 });
+  saveCart();
+  updateCartBadge();
+  openCartDrawer();
+}
+function removeFromCart(idx) {
+  state.cart.splice(idx, 1);
+  saveCart();
+  updateCartBadge();
+  renderCartDrawer();
+}
+function changeQty(idx, delta) {
+  const it = state.cart[idx];
+  if (!it) return;
+  it.qty += delta;
+  if (it.qty <= 0) state.cart.splice(idx, 1);
+  saveCart();
+  updateCartBadge();
+  renderCartDrawer();
+}
+function updateCartBadge() {
+  const badge = document.querySelector('.cart-badge');
+  if (badge) {
+  const n = cartCount();
+    badge.textContent = n;
+    badge.style.display = n > 0 ? 'flex' : 'none';
+  }
+}
+function openCartDrawer() { document.body.classList.add('cart-open'); renderCartDrawer(); }
+function closeCartDrawer() { document.body.classList.remove('cart-open'); }
+function renderCartDrawer() {
+  const drawer = document.getElementById('cart-drawer');
+  if (!drawer) return;
+  const items = state.cart.map((it, i) => `
+    <div class="cart-item">
+      <img class="cart-item-img" src="${it.image_url || ''}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+      <div class="cart-item-info">
+        <div class="cart-item-name">${it.name}</div>
+        <div class="cart-item-meta">${it.color || ''}${it.size ? ' · ' + it.size : ''}</div>
+        <div class="cart-item-price">${fmtPrice(it.price)}</div>
+        <div class="cart-item-qty">
+          <button class="qty-btn" data-idx="${i}" data-delta="-1">−</button>
+          <span>${it.qty}</span>
+          <button class="qty-btn" data-idx="${i}" data-delta="1">+</button>
+          <button class="qty-remove" data-idx="${i}">✕</button>
+        </div>
+      </div>
+    </div>`).join('');
+  drawer.querySelector('.cart-items').innerHTML = items || '<div class="cart-empty">Votre panier est vide.</div>';
+  drawer.querySelector('.cart-total-val').textContent = fmtPrice(cartTotal());
+  drawer.querySelector('.cart-count').textContent = cartCount();
+  drawer.querySelectorAll('.qty-btn').forEach(b => b.addEventListener('click', () => changeQty(parseInt(b.dataset.idx), parseInt(b.dataset.delta))));
+  drawer.querySelectorAll('.qty-remove').forEach(b => b.addEventListener('click', () => removeFromCart(parseInt(b.dataset.idx))));
+}
 
 const DEFAULT_CAMPAIGN = {
   eyebrow: 'Rentrée 2026',
@@ -109,9 +195,9 @@ const header = () => `
       ? `<a href="#/admin" class="icon" aria-label="Admin" title="Administration"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5h18v14H3z"/><path d="M3 10h18"/><path d="M8 14h2"/><path d="M14 14h2"/></svg></a>
          <a href="#" class="icon" id="logout-btn" aria-label="Déconnexion" title="Déconnexion"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></a>`
       : `<a href="#/connexion" class="icon" aria-label="Compte" title="Se connecter"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg></a>`}
-    <a href="#" class="icon cart" aria-label="Panier" title="Panier">
+    <a href="#" class="icon cart" id="cart-trigger" aria-label="Panier" title="Panier">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4.5 7.5h15l-1.3 11h-12.4z"/><path d="M8.8 7.5a3.2 3.2 0 0 1 6.4 0"/></svg>
-      <span class="cart-badge">2</span>
+      <span class="cart-badge" style="display:none">0</span>
     </a>
   </div>
 </header>`;
@@ -145,22 +231,42 @@ const heroGallery = () => {
 };
 
 const card = (p, big = true) => `
-<a href="#/produit" class="card" data-id="${p.id || ''}">
-  <div class="card-img ${big ? '' : 'sm'}">
-    ${p.image_url ? `<img class="prod-img" src="${p.image_url}" alt="${p.name}" referrerpolicy="no-referrer" loading="lazy" data-retry="0" onerror="if(this.dataset.retry<2){this.dataset.retry++;this.src=this.src.split('&retry=')[0]+'&retry='+this.dataset.retry;}else{this.style.display='none';this.parentElement.classList.add('no-img');}">` : '<span class="ph-label">[ photo produit ]</span>'}
-    ${p.badge ? `<span class="badge ${p.badge === 'Nouveau' ? 'orange' : ''}">${p.badge}</span>` : ''}
-  </div>
-  <div class="card-body">
-    <div class="dots">${(p.colorsList || []).slice(0, 5).map(c => `<span style="background:${stringToColor(c)}" title="${c}"></span>`).join('')}<em>${p.colors} couleur${p.colors > 1 ? 's' : ''}</em></div>
-    <div class="card-name">${p.name}</div>
-    <div class="card-cat">${p.cat}</div>
-    <div class="card-price">
-      ${p.oldPrice
-        ? `<span class="sale">${p.price}</span><span class="old">${p.oldPrice}</span>`
-        : `<span>${p.price}</span>`}
+<div class="card-wrap">
+  <a href="#/produit" class="card" data-id="${p.id || ''}">
+    <div class="card-img ${big ? '' : 'sm'}">
+      ${p.image_url ? `<img class="prod-img" src="${p.image_url}" alt="${p.name}" referrerpolicy="no-referrer" loading="lazy" data-retry="0" onerror="if(this.dataset.retry<2){this.dataset.retry++;this.src=this.src.split('&retry=')[0]+'&retry='+this.dataset.retry;}else{this.style.display='none';this.parentElement.classList.add('no-img');}">` : '<span class="ph-label">[ photo produit ]</span>'}
+      ${p.badge ? `<span class="badge ${p.badge === 'Nouveau' ? 'orange' : ''}">${p.badge}</span>` : ''}
     </div>
+    <div class="card-body">
+      <div class="dots">${(p.colorsList || []).slice(0, 5).map(c => `<span style="background:${realColor(c)}" title="${c}"></span>`).join('')}${p.colors > 5 ? '<em>+</em>' : ''}<em>${p.colors} couleur${p.colors > 1 ? 's' : ''}</em></div>
+      <div class="card-name">${p.name}</div>
+      <div class="card-cat">${p.cat}</div>
+      <div class="card-price">
+        ${p.oldPrice
+          ? `<span class="sale">${p.price}</span><span class="old">${p.oldPrice}</span>`
+          : `<span>${p.price}</span>`}
+      </div>
+    </div>
+  </a>
+  <button class="card-add-btn" data-id="${p.id || ''}" title="Ajouter au panier">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+  </button>
+</div>`;
+
+const cartDrawerHtml = () => `
+<div id="cart-overlay" class="cart-overlay"></div>
+<aside id="cart-drawer" class="cart-drawer">
+  <div class="cart-head">
+    <span class="cart-head-title">Panier (<span class="cart-count">0</span>)</span>
+    <button id="cart-close" class="cart-close" aria-label="Fermer">&times;</button>
   </div>
-</a>`;
+  <div class="cart-items"></div>
+  <div class="cart-footer">
+    <div class="cart-total-row"><span>Sous-total</span><span class="cart-total-val">$0.00</span></div>
+    <button class="btn orange full">Passer la commande</button>
+    <div class="cart-ship-note">Livraison gratuite à partir de 150 $</div>
+  </div>
+</aside>`;
 
 const footer = () => `
 <footer class="footer">
@@ -266,11 +372,7 @@ function getNewArrivals() {
 }
 
 function stringToColor(str) {
-  if (!str) return '#9C9CA4';
-  const colors = ['#16161A','#FF5A1F','#2E2E34','#9C9CA4','#F2F0EB','#E91E63','#2196F3','#4CAF50','#FF9800','#9C27B0'];
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
+  return realColor(str);
 }
 
 const filterSection = (title, items, type = 'check', accent = false) => `
@@ -395,13 +497,13 @@ const pagePdp = () => {
       <div class="pdp-price">${oldPrice ? `<span class="sale">${price}</span> <span class="old">${oldPrice}</span>` : price}</div>
       ${colors.length > 0 ? `<div class="filter-title">Couleur : <span id="selected-color-name">${colors[0]}</span></div>
       <div class="swatches lg" id="color-swatches">
-        ${colors.map((c, i) => `<span class="color-swatch${i === 0 ? ' sel' : ''}" data-color="${c}" style="background:${stringToColor(c)}" title="${c}"></span>`).join('')}
+        ${colors.map((c, i) => `<span class="color-swatch${i === 0 ? ' sel' : ''}" data-color="${c}" style="background:${realColor(c)}" title="${c}"></span>`).join('')}
       </div>
       <div class="color-count">${colors.length} couleur${colors.length > 1 ? 's' : ''} disponible${colors.length > 1 ? 's' : ''}</div>` : ''}
       ${sizes.length > 0 ? `<div class="size-head"><span class="filter-title">Taille</span><a href="#">Guide des tailles</a></div>
       <div class="sizes-grid" id="sizes-grid">${sizes.map(s => `<span class="size">${s}</span>`).join('')}</div>
       <div class="size-count">${sizes.length} taille${sizes.length > 1 ? 's' : ''} disponible${sizes.length > 1 ? 's' : ''}</div>` : ''}
-      <button class="btn orange full">Ajouter au panier</button>
+      <button class="btn orange full" id="pdp-add-cart">Ajouter au panier</button>
       <div class="pdp-ship">Livraison gratuite à partir de 150 $ · Retours sous 60 jours</div>
       ${desc ? `<div class="acc open"><div class="acc-head">Description <span>+</span></div>
         <p>${desc}</p>
@@ -1120,9 +1222,10 @@ const routes = {
 function render() {
   const path = location.hash.replace('#', '') || '/';
   const page = routes[path] || pageHome;
-  app.innerHTML = promoBar() + header() + page() + footer();
+  app.innerHTML = promoBar() + header() + page() + footer() + cartDrawerHtml();
   bind();
   startHeroCycle();
+  updateCartBadge();
   if (path !== '' && path !== '/') window.scrollTo(0, 0);
 }
 
@@ -1218,9 +1321,40 @@ function bind() {
     c.addEventListener('click', (e) => {
       e.preventDefault();
       state.selectedProductId = c.dataset.id;
+      state.selectedColor = null;
+      state.selectedSize = null;
       location.hash = '#/produit';
     });
   });
+
+  // Card add-to-cart buttons
+  document.querySelectorAll('.card-add-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const prod = state.products.find(x => x.id === btn.dataset.id);
+      if (!prod) return;
+      const mp = mapProduct(prod);
+      const skus = state.storeSkus.filter(s => s.product_id === prod.id);
+      const firstSku = skus[0] || {};
+      addToCart({
+        productId: prod.id,
+        name: prod.name || 'Sans nom',
+        price: parseFloat(firstSku.price) || 0,
+        color: firstSku.color || '',
+        size: firstSku.size || '',
+        image_url: mp.image_url,
+      });
+    });
+  });
+
+  // Cart drawer
+  const cartTrigger = document.getElementById('cart-trigger');
+  if (cartTrigger) cartTrigger.addEventListener('click', (e) => { e.preventDefault(); openCartDrawer(); });
+  const cartClose = document.getElementById('cart-close');
+  if (cartClose) cartClose.addEventListener('click', closeCartDrawer);
+  const cartOverlay = document.getElementById('cart-overlay');
+  if (cartOverlay) cartOverlay.addEventListener('click', closeCartDrawer);
 
   // PDP gallery navigation
   const galMain = document.getElementById('gal-main-img');
@@ -1250,6 +1384,7 @@ function bind() {
     sw.addEventListener('click', () => {
       document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('sel'));
       sw.classList.add('sel');
+      state.selectedColor = sw.dataset.color;
       const label = document.getElementById('selected-color-name');
       if (label) label.textContent = sw.dataset.color;
     });
@@ -1260,8 +1395,32 @@ function bind() {
     sz.addEventListener('click', () => {
       document.querySelectorAll('#sizes-grid .size').forEach(s => s.classList.remove('selected'));
       sz.classList.add('selected');
+      state.selectedSize = sz.textContent.trim();
     });
   });
+
+  // PDP add to cart
+  const pdpAddBtn = document.getElementById('pdp-add-cart');
+  if (pdpAddBtn) {
+    pdpAddBtn.addEventListener('click', () => {
+      const p = state.products.find(x => x.id === state.selectedProductId);
+      if (!p) return;
+      const skus = state.storeSkus.filter(s => s.product_id === p.id);
+      const colors = [...new Set(skus.map(s => s.color).filter(Boolean))];
+      const sizes = [...new Set(skus.map(s => s.size).filter(Boolean))];
+      const color = state.selectedColor || (colors.length > 0 ? colors[0] : '');
+      const size = state.selectedSize || (sizes.length > 0 ? sizes[0] : '');
+      const mp = mapProduct(p);
+      const firstSku = skus[0] || {};
+      addToCart({
+        productId: p.id,
+        name: p.name || 'Sans nom',
+        price: parseFloat(firstSku.price) || 0,
+        color, size,
+        image_url: mp.image_url,
+      });
+    });
+  }
 }
 
 let heroTimer = null;
