@@ -9,6 +9,7 @@ const state = {
   session: null, loadingProducts: false, campaign: null,
   adminTab: 'overview', adminFilter: { category: '', supplier: '', search: '', stock: '' },
   adminSort: 'name', adminPage: 1, adminPerPage: 20, adminDetailProduct: null,
+  selectedProductId: null,
 };
 
 const DEFAULT_CAMPAIGN = {
@@ -361,40 +362,60 @@ const pageSearch = () => {
 </main>`;
 };
 
-const pagePdp = () => `
+const pagePdp = () => {
+  const p = state.products.find(x => x.id === state.selectedProductId);
+  if (!p) {
+    return `<main class="pad"><div class="empty">Produit introuvable. <a href="#/">Retour à l'accueil</a></div></main>`;
+  }
+  const skus = state.storeSkus.filter(s => s.product_id === p.id);
+  const colors = [...new Set(skus.map(s => s.color).filter(Boolean))];
+  const sizes = [...new Set(skus.map(s => s.size).filter(Boolean))];
+  const imgs = state.storeImages.filter(i => i.numref === p.numref).sort((a, b) => a.image_number - b.image_number);
+  const firstSku = skus[0] || {};
+  const price = firstSku.price ? fmtPrice(firstSku.price) : '';
+  const oldPrice = firstSku.suggested_price && parseFloat(firstSku.suggested_price) > parseFloat(firstSku.price || 0) ? fmtPrice(firstSku.suggested_price) : '';
+  const badge = oldPrice ? 'Solde' : (p.season && p.season.includes('2026') ? 'Nouveau' : '');
+  const catLabel = CAT_LABELS[(p.category || '').toUpperCase()] || p.category || '';
+  const deptLabel = p.department || '';
+  const desc = p.description_fr || p.description_web || p.description_en || '';
+  const related = state.products.filter(x => x.id !== p.id && x.category === p.category).slice(0, 4).map(mapProduct);
+  const galleryHtml = imgs.length > 0
+    ? `<div class="thumbs">${imgs.slice(0, 4).map(i => `<div><img src="${i.filename}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`).join('')}</div>
+       <div class="gallery-main"><img src="${imgs[0].filename}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;"></div>`
+    : `${ph('photo produit principale', 'gallery-main')}`;
+  return `
 <main class="pad">
-  <div class="crumbs"><a href="#/">Accueil</a> / <a href="#/hommes">Hommes</a> / <b>T-shirt AS-Dry Performance</b></div>
+  <div class="crumbs"><a href="#/">Accueil</a> / <a href="#/${(p.category||'').toLowerCase()}">${catLabel}</a> / <b>${p.name}</b></div>
   <div class="pdp">
     <div class="gallery">
-      <div class="thumbs">${[1, 2, 3, 4].map(() => '<div></div>').join('')}</div>
-      ${ph('photo produit principale — t-shirt porté', 'gallery-main')}
+      ${galleryHtml}
     </div>
     <div class="buybox">
-      <div class="eyebrow">Nouveauté</div>
-      <h1>T-shirt AS-Dry Performance</h1>
-      <div class="pdp-cat">Entraînement · Homme</div>
-      <div class="pdp-price">34,99 $</div>
-      <div class="filter-title">Couleur : Noir carbone</div>
+      ${badge ? `<div class="eyebrow">${badge}</div>` : ''}
+      <h1>${p.name}</h1>
+      <div class="pdp-cat">${deptLabel}${catLabel ? ' · ' + catLabel : ''}</div>
+      <div class="pdp-price">${oldPrice ? `<span class="sale">${price}</span> <span class="old">${oldPrice}</span>` : price}</div>
+      ${colors.length > 0 ? `<div class="filter-title">Couleur : ${colors[0]}</div>
       <div class="swatches lg">
-        <span class="sel" style="background:#16161A"></span><span style="background:#FF5A1F"></span>
-        <span style="background:#9C9CA4"></span><span style="background:#F2F0EB;border:1px solid #9C9CA4"></span>
-      </div>
-      <div class="size-head"><span class="filter-title">Taille</span><a href="#">Guide des tailles</a></div>
-      <div class="sizes-grid">${DEPTS.hommes.sizes.slice(0, 6).map(s => `<span class="size">${s}</span>`).join('')}</div>
+        ${colors.map((c, i) => `<span ${i === 0 ? 'class="sel"' : ''} style="background:${stringToColor(c)}" title="${c}"></span>`).join('')}
+      </div>` : ''}
+      ${sizes.length > 0 ? `<div class="size-head"><span class="filter-title">Taille</span><a href="#">Guide des tailles</a></div>
+      <div class="sizes-grid">${sizes.slice(0, 8).map(s => `<span class="size">${s}</span>`).join('')}</div>` : ''}
       <button class="btn orange full">Ajouter au panier</button>
       <div class="pdp-ship">Livraison gratuite à partir de 150 $ · Retours sous 60 jours</div>
-      <div class="acc open"><div class="acc-head">Description <span>+</span></div>
-        <p>Tissu AS-Dry qui évacue la transpiration et sèche rapidement. Coupe athlétique, col rond côtelé, coutures plates anti-frottement. 90 % polyester, 10 % élasthanne.</p>
-      </div>
+      ${desc ? `<div class="acc open"><div class="acc-head">Description <span>+</span></div>
+        <p>${desc}</p>
+      </div>` : ''}
       <div class="acc"><div class="acc-head">Livraison et retours <span>+</span></div></div>
       <div class="acc"><div class="acc-head">Entretien <span>+</span></div></div>
     </div>
   </div>
-  <section class="related">
+  ${related.length > 0 ? `<section class="related">
     <h2>Vous aimerez aussi</h2>
-    <div class="grid g4">${getNewArrivals().map(p => card(p, false)).join('')}</div>
-  </section>
+    <div class="grid g4">${related.map(rp => card(rp, false)).join('')}</div>
+  </section>` : ''}
 </main>`;
+};
 
 // ---------- Page connexion ----------
 const pageLogin = () => `
@@ -981,6 +1002,15 @@ function bind() {
 
   const campaignForm = document.getElementById('campaign-form');
   if (campaignForm) campaignForm.addEventListener('submit', saveCampaign);
+
+  // Storefront card click → PDP
+  document.querySelectorAll('.card[data-id]').forEach(c => {
+    c.addEventListener('click', (e) => {
+      e.preventDefault();
+      state.selectedProductId = c.dataset.id;
+      location.hash = '#/produit';
+    });
+  });
 }
 
 let heroTimer = null;
