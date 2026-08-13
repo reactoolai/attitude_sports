@@ -666,6 +666,9 @@ function adminInventory() {
         <option value="stock" ${state.adminSort === 'stock' ? 'selected' : ''}>Stock</option>
       </select>
       <button id="adm-export-csv" class="btn orange" style="padding:8px 16px;font-size:13px;white-space:nowrap;">Exporter CSV</button>
+      <button id="adm-import-csv" class="btn" style="padding:8px 16px;font-size:13px;white-space:nowrap;background:#2E2E34;color:#fff;">Importer CSV</button>
+      <input type="file" id="adm-csv-file" accept=".csv" style="display:none;">
+      <span id="adm-import-status" style="font-size:13px;color:#666;"></span>
     </div>
     <div class="adm-table-wrap">
       <table class="adm-table">
@@ -905,7 +908,7 @@ function exportInventoryCSV() {
   const products = state.adminProducts;
   const skus = state.adminSkus;
   const images = state.adminImages;
-  const headers = ['Reference', 'Nom', 'Categorie', 'Departement', 'Marque', 'Saison', 'Tailles', 'Couleurs', 'Prix', 'Prix suggere', 'Stock total', 'Nb SKUs', 'Image (Oui/Non)', 'Nb images'];
+  const headers = ['Reference', 'Nom', 'Categorie', 'Departement', 'Marque', 'Saison', 'Tailles', 'Couleurs', 'Prix', 'Prix suggere', 'Stock total', 'Nb SKUs', 'Image (Oui/Non)', 'Nb images', 'Image URL'];
   const rows = products.map(p => {
     const pskus = skus.filter(s => s.product_id === p.id);
     const sizes = [...new Set(pskus.map(s => s.size).filter(Boolean))].join('; ');
@@ -913,8 +916,10 @@ function exportInventoryCSV() {
     const price = pskus[0] ? pskus[0].price : '';
     const suggested = pskus[0] && pskus[0].suggested_price ? pskus[0].suggested_price : '';
     const stock = pskus.reduce((sum, s) => sum + (s.quantity || 0), 0);
-    const imgCount = images.filter(i => i.numref === p.numref).length;
+    const prodImgs = images.filter(i => i.numref === p.numref).sort((a, b) => a.image_number - b.image_number);
+    const imgCount = prodImgs.length;
     const hasImg = imgCount > 0 ? 'Oui' : 'Non';
+    const imgUrl = prodImgs[0] ? (prodImgs[0].image_url || '') : '';
     return [
       p.numref || '',
       p.name || '',
@@ -930,6 +935,7 @@ function exportInventoryCSV() {
       pskus.length,
       hasImg,
       imgCount,
+      imgUrl,
     ];
   });
   const csv = [headers, ...rows].map(r => r.map(c => {
@@ -947,6 +953,122 @@ function exportInventoryCSV() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function parseCSV(text) {
+  const clean = text.replace(/^\uFEFF/, '').trim();
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (clean[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { row.push(field); field = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && clean[i + 1] === '\n') i++;
+        row.push(field); rows.push(row); row = []; field = '';
+      } else field += ch;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function csvHeaderMap(headers) {
+  const map = {};
+  headers.forEach((h, i) => {
+    const key = h.trim().toLowerCase();
+    if (key === 'reference' || key === 'ref.' || key === 'ref' || key === 'numref') map.numref = i;
+    else if (key === 'nom' || key === 'name' || key === 'produit') map.name = i;
+    else if (key === 'categorie' || key === 'category') map.category = i;
+    else if (key === 'departement' || key === 'department' || key === 'dept.') map.department = i;
+    else if (key === 'marque' || key === 'fournisseur' || key === 'supplier' || key === 'brand') map.supplier = i;
+    else if (key === 'saison' || key === 'season') map.season = i;
+    else if (key === 'tailles' || key === 'sizes') map.sizes = i;
+    else if (key === 'couleurs' || key === 'colors') map.colors = i;
+    else if (key === 'prix' || key === 'price') map.price = i;
+    else if (key === 'prix suggere' || key === 'suggested_price' || key === 'prix sugg.') map.suggested = i;
+    else if (key === 'stock total' || key === 'stock') map.stock = i;
+    else if (key === 'image url' || key === 'image_url' || key === 'url image' || key === 'url') map.imageUrl = i;
+  });
+  return map;
+}
+
+const CAT_REVERSE = { 'Femme': 'FEMME', 'Homme': 'HOMME', 'Fille': 'FILLE', 'Garcon': 'GARCON', 'Unisexe': 'UNISEXE' };
+
+async function importInventoryCSV(file) {
+  const statusEl = document.getElementById('adm-import-status');
+  if (statusEl) { statusEl.textContent = 'Lecture du fichier...'; statusEl.style.color = '#666'; }
+  const text = await file.text();
+  const rows = parseCSV(text);
+  if (rows.length < 2) {
+    if (statusEl) { statusEl.textContent = 'Fichier vide ou invalide.'; statusEl.style.color = '#F44336'; }
+    return;
+  }
+  const headers = rows[0].map(h => h.trim());
+  const col = csvHeaderMap(headers);
+  if (col.numref === undefined) {
+    if (statusEl) { statusEl.textContent = 'Colonne Reference manquante.'; statusEl.style.color = '#F44336'; }
+    return;
+  }
+  const dataRows = rows.slice(1).filter(r => r[col.numref] && r[col.numref].trim());
+  let updated = 0, created = 0, imgUpdated = 0, errors = 0;
+
+  for (let idx = 0; idx < dataRows.length; idx++) {
+    const r = dataRows[idx];
+    const numref = (r[col.numref] || '').trim();
+    if (statusEl) statusEl.textContent = `Importation... ${idx + 1}/${dataRows.length} (${numref})`;
+
+    const catRaw = col.category !== undefined ? (r[col.category] || '').trim() : '';
+    const category = CAT_REVERSE[catRaw] || catRaw || '';
+
+    const productPayload = {
+      numref,
+      name: col.name !== undefined ? (r[col.name] || '').trim() : '',
+      category,
+      department: col.department !== undefined ? (r[col.department] || '').trim() : '',
+      supplier: col.supplier !== undefined ? (r[col.supplier] || '').trim() : '',
+      season: col.season !== undefined ? (r[col.season] || '').trim() : '',
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: existing } = await supabase.from('products').select('id').eq('numref', numref).maybeSingle();
+    let productId = existing && existing.id;
+
+    if (productId) {
+      const { error } = await supabase.from('products').update(productPayload).eq('id', productId);
+      if (error) { console.error('update product error', numref, error); errors++; }
+      else updated++;
+    } else {
+      const { data: inserted, error } = await supabase.from('products').insert(productPayload).select('id').single();
+      if (error) { console.error('insert product error', numref, error); errors++; }
+      else { productId = inserted.id; created++; }
+    }
+
+    if (productId && col.imageUrl !== undefined) {
+      const url = (r[col.imageUrl] || '').trim();
+      if (url) {
+        const { data: existingImg } = await supabase.from('product_images').select('id').eq('numref', numref).eq('image_number', 1).maybeSingle();
+        if (existingImg) {
+          await supabase.from('product_images').update({ image_url: url, product_id: productId }).eq('id', existingImg.id);
+        } else {
+          await supabase.from('product_images').insert({ numref, product_id: productId, image_number: 1, image_url: url });
+        }
+        imgUpdated++;
+      }
+    }
+  }
+
+  const msg = `Termine: ${created} crees, ${updated} mis a jour, ${imgUpdated} images, ${errors} erreurs`;
+  if (statusEl) { statusEl.textContent = msg; statusEl.style.color = errors > 0 ? '#FF9800' : '#4CAF50'; }
+  await loadAdminProducts();
 }
 
 function bindAdminInventory() {
@@ -968,6 +1090,16 @@ function bindAdminInventory() {
   });
   const exportBtn = document.getElementById('adm-export-csv');
   if (exportBtn) exportBtn.addEventListener('click', exportInventoryCSV);
+  const importBtn = document.getElementById('adm-import-csv');
+  const csvFileInput = document.getElementById('adm-csv-file');
+  if (importBtn && csvFileInput) {
+    importBtn.addEventListener('click', () => csvFileInput.click());
+    csvFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) importInventoryCSV(file);
+      csvFileInput.value = '';
+    });
+  }
 }
 
 async function handleLogout(e) {
@@ -1078,6 +1210,16 @@ function bind() {
 
   const exportCsvBtn = document.getElementById('adm-export-csv');
   if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportInventoryCSV);
+  const importCsvBtn = document.getElementById('adm-import-csv');
+  const csvFile = document.getElementById('adm-csv-file');
+  if (importCsvBtn && csvFile) {
+    importCsvBtn.addEventListener('click', () => csvFile.click());
+    csvFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) importInventoryCSV(file);
+      csvFile.value = '';
+    });
+  }
 
   // Storefront card click → PDP
   document.querySelectorAll('.card[data-id]').forEach(c => {
