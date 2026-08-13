@@ -1,8 +1,36 @@
 import './style.css';
-import { DEPTS, PRODUCTS, NEW_ARRIVALS, BENEFITS, FOOTER_COLS, FITS, TECHS, DISCOUNTS, RATINGS } from './data.js';
+import { DEPTS, NEW_ARRIVALS, BENEFITS, FOOTER_COLS, FITS, TECHS, DISCOUNTS, RATINGS } from './data.js';
+import { supabase } from './supabase.js';
 
 const app = document.getElementById('app');
-const state = { sort: 'featured', q: '' };
+const state = { sort: 'featured', q: '', products: [], adminProducts: [], session: null, loadingProducts: false };
+
+// ---------- Supabase product loading ----------
+async function loadProducts() {
+  state.loadingProducts = true;
+  const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+  if (error) { console.error('loadProducts error:', error); state.loadingProducts = false; return; }
+  state.products = data || [];
+  state.loadingProducts = false;
+}
+
+function mapProduct(p) {
+  return {
+    name: p.name,
+    cat: p.cat,
+    colors: p.colors,
+    price: p.price,
+    n: parseFloat(p.n) || 0,
+    oldPrice: p.old_price || '',
+    badge: p.badge || '',
+    d: Array.isArray(p.d) ? p.d : [],
+    rating: p.rating || '0',
+    reviews: p.reviews || 0,
+    dots: Array.isArray(p.dots) ? p.dots : [],
+    image_url: p.image_url || '',
+    id: p.id,
+  };
+}
 
 // ---------- Composants partagés ----------
 const promoBar = () => `<div class="promo">Livraison gratuite à partir de 150 $ &nbsp;·&nbsp; Retours faciles en magasin</div>`;
@@ -19,9 +47,10 @@ const header = () => `
   </nav>
   <div class="header-right">
     <div class="search"><span>⌕</span><input id="search-input" value="${state.q}" placeholder="Rechercher"></div>
-    <a href="#" class="icon" aria-label="Compte" title="Se connecter">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg>
-    </a>
+    ${state.session
+      ? `<a href="#/admin" class="icon" aria-label="Admin" title="Administration"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5h18v14H3z"/><path d="M3 10h18"/><path d="M8 14h2"/><path d="M14 14h2"/></svg></a>
+         <a href="#" class="icon" id="logout-btn" aria-label="Déconnexion" title="Déconnexion"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></a>`
+      : `<a href="#/connexion" class="icon" aria-label="Compte" title="Se connecter"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg></a>`}
     <a href="#" class="icon cart" aria-label="Panier" title="Panier">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4.5 7.5h15l-1.3 11h-12.4z"/><path d="M8.8 7.5a3.2 3.2 0 0 1 6.4 0"/></svg>
       <span class="cart-badge">2</span>
@@ -60,11 +89,11 @@ const heroGallery = () => {
 const card = (p, big = true) => `
 <a href="#/produit" class="card">
   <div class="card-img ${big ? '' : 'sm'}">
-    <span class="ph-label">[ photo produit ]</span>
+    ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;">` : '<span class="ph-label">[ photo produit ]</span>'}
     ${p.badge ? `<span class="badge ${p.badge === 'Nouveau' ? 'orange' : ''}">${p.badge}</span>` : ''}
   </div>
   <div class="card-body">
-    <div class="dots">${p.dots.map(c => `<span style="background:${c}"></span>`).join('')}<em>${p.colors} couleurs</em></div>
+    <div class="dots">${(p.dots || []).map(c => `<span style="background:${c}"></span>`).join('')}<em>${p.colors} couleurs</em></div>
     <div class="card-name">${p.name}</div>
     <div class="card-cat">${p.cat}</div>
     <div class="card-price">
@@ -140,7 +169,7 @@ const pageHome = () => `
       <h2>Nouveautés</h2>
       <a href="#/hommes" class="link-more">Tout voir</a>
     </div>
-    <div class="grid g4">${NEW_ARRIVALS.map(p => card(p)).join('')}</div>
+    <div class="grid g4">${getNewArrivals().map(p => card(p)).join('')}</div>
   </section>
   <section class="split">
     <div class="split-ph" style="background-image:url('/tof.png')"></div>
@@ -156,6 +185,12 @@ const pageHome = () => `
   </section>
 </main>`;
 
+function getNewArrivals() {
+  if (state.products.length === 0) return NEW_ARRIVALS;
+  const names = ['T-shirt AS-Dry Performance', 'Legging Momentum 7/8', 'Chandail à capuchon Fortitude', 'Chaussure Vitesse 3'];
+  return state.products.filter(p => names.includes(p.name)).map(mapProduct);
+}
+
 const filterSection = (title, items, type = 'check', accent = false) => `
 <div class="filter ${accent ? 'accent' : ''}">
   <div class="filter-title">${title}</div>
@@ -166,7 +201,9 @@ const filterSection = (title, items, type = 'check', accent = false) => `
 
 const pagePlp = (deptKey) => {
   const dept = DEPTS[deptKey];
-  let products = PRODUCTS.filter(p => p.d.includes(deptKey));
+  let products = state.products.length > 0
+    ? state.products.filter(p => { const d = Array.isArray(p.d) ? p.d : []; return d.includes(deptKey); }).map(mapProduct)
+    : [];
   if (state.sort === 'price-asc') products = [...products].sort((a, b) => a.n - b.n);
   if (state.sort === 'price-desc') products = [...products].sort((a, b) => b.n - a.n);
   if (state.sort === 'new') products = [...products].sort((a, b) => (b.badge === 'Nouveau' ? 1 : 0) - (a.badge === 'Nouveau' ? 1 : 0));
@@ -208,8 +245,10 @@ const pagePlp = (deptKey) => {
         ${filterSection('Évaluation', RATINGS)}
       </aside>
       <div>
-        <div class="grid g3">${products.map(p => card(p)).join('')}</div>
-        <div class="pagination"><span class="active">1</span><span>2</span><span>3</span><span>→</span></div>
+        ${products.length > 0
+          ? `<div class="grid g3">${products.map(p => card(p)).join('')}</div>
+             <div class="pagination"><span class="active">1</span><span>2</span><span>3</span><span>→</span></div>`
+          : `<div class="empty">${state.loadingProducts ? 'Chargement des produits...' : 'Aucun article dans cette catégorie pour le moment.'}</div>`}
       </div>
     </div>
   </div>
@@ -218,7 +257,8 @@ const pagePlp = (deptKey) => {
 
 const pageSearch = () => {
   const ql = state.q.trim().toLowerCase();
-  const results = ql ? PRODUCTS.filter(p => (p.name + ' ' + p.cat).toLowerCase().includes(ql)) : [];
+  const allProducts = state.products.map(mapProduct);
+  const results = ql ? allProducts.filter(p => (p.name + ' ' + p.cat).toLowerCase().includes(ql)) : [];
   return `
 <main class="pad search-page">
   <h1 class="search-title">Résultats pour «${state.q}» <em>(${results.length} article${results.length === 1 ? '' : 's'})</em></h1>
@@ -259,9 +299,200 @@ const pagePdp = () => `
   </div>
   <section class="related">
     <h2>Vous aimerez aussi</h2>
-    <div class="grid g4">${NEW_ARRIVALS.map(p => card(p, false)).join('')}</div>
+    <div class="grid g4">${getNewArrivals().map(p => card(p, false)).join('')}</div>
   </section>
 </main>`;
+
+// ---------- Page connexion ----------
+const pageLogin = () => `
+<main class="admin-auth">
+  <div class="auth-card">
+    <div class="auth-logo"><img src="/logo.png" alt="Attitude Sports"></div>
+    <h1>Connexion admin</h1>
+    <p class="auth-sub">Accès réservé à l'administration du magasin.</p>
+    <form id="login-form" class="auth-form">
+      <label>Courriel
+        <input type="email" id="login-email" required autocomplete="email">
+      </label>
+      <label>Mot de passe
+        <input type="password" id="login-pass" required autocomplete="current-password">
+      </label>
+      <div id="login-error" class="auth-error" style="display:none;"></div>
+      <button type="submit" class="btn orange full">Se connecter</button>
+    </form>
+  </div>
+</main>`;
+
+// ---------- Page admin ----------
+const pageAdmin = () => {
+  if (!state.session) return pageLogin();
+  const products = state.adminProducts;
+  return `
+<main class="admin">
+  <div class="admin-head">
+    <div>
+      <h1>Tableau de bord</h1>
+      <p class="admin-sub">${state.session.user.email}</p>
+    </div>
+    <button class="btn orange" id="new-product-btn">+ Nouveau produit</button>
+  </div>
+  <div class="admin-stats">
+    <div class="stat-card"><span class="stat-num">${products.length}</span><span class="stat-label">Produits</span></div>
+    <div class="stat-card"><span class="stat-num">${products.filter(p => p.badge === 'Nouveau').length}</span><span class="stat-label">Nouveautés</span></div>
+    <div class="stat-card"><span class="stat-num">${products.filter(p => p.badge === 'Solde').length}</span><span class="stat-label">En solde</span></div>
+  </div>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>Nom</th><th>Catégorie</th><th>Prix</th><th>Ancien prix</th><th>Badge</th><th>Départements</th><th>Évaluation</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        ${products.map(p => `
+          <tr data-id="${p.id}">
+            <td>${p.name}</td>
+            <td>${p.cat}</td>
+            <td>${p.price}</td>
+            <td>${p.old_price || '—'}</td>
+            <td>${p.badge ? `<span class="admin-badge ${p.badge === 'Nouveau' ? 'orange' : ''}">${p.badge}</span>` : '—'}</td>
+            <td>${(Array.isArray(p.d) ? p.d : []).join(', ')}</td>
+            <td>${p.rating} (${p.reviews})</td>
+            <td class="admin-actions">
+              <button class="admin-edit" data-id="${p.id}">Modifier</button>
+              <button class="admin-delete" data-id="${p.id}">Supprimer</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div id="product-modal" class="modal" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="modal-title">Nouveau produit</h2>
+        <button id="modal-close" class="modal-close">&times;</button>
+      </div>
+      <form id="product-form" class="modal-form">
+        <input type="hidden" id="pf-id">
+        <label>Nom <input type="text" id="pf-name" required></label>
+        <label>Catégorie <input type="text" id="pf-cat"></label>
+        <div class="form-row">
+          <label>Prix <input type="text" id="pf-price" placeholder="34,99 $"></label>
+          <label>Ancien prix <input type="text" id="pf-old-price" placeholder="44,99 $"></label>
+        </div>
+        <div class="form-row">
+          <label>Badge <select id="pf-badge"><option value="">Aucun</option><option value="Nouveau">Nouveau</option><option value="Solde">Solde</option></select></label>
+          <label>Couleurs (nombre) <input type="number" id="pf-colors" min="1" value="1"></label>
+        </div>
+        <label>Départements (séparés par virgules) <input type="text" id="pf-depts" placeholder="hommes, femmes"></label>
+        <label>Couleurs (hex séparés par virgules) <input type="text" id="pf-dots" placeholder="#16161A, #FF5A1F"></label>
+        <div class="form-row">
+          <label>Évaluation <input type="text" id="pf-rating" placeholder="4.7"></label>
+          <label>Avis (nombre) <input type="number" id="pf-reviews" min="0" value="0"></label>
+        </div>
+        <label>URL d'image (optionnel) <input type="text" id="pf-image" placeholder="/images/..."></label>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" id="modal-cancel">Annuler</button>
+          <button type="submit" class="btn orange">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>`;
+};
+
+// ---------- Admin logic ----------
+async function loadAdminProducts() {
+  const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+  if (error) { console.error('admin load error:', error); return; }
+  state.adminProducts = data || [];
+  render();
+}
+
+function openProductModal(product) {
+  const modal = document.getElementById('product-modal');
+  const title = document.getElementById('modal-title');
+  title.textContent = product ? 'Modifier le produit' : 'Nouveau produit';
+  document.getElementById('pf-id').value = product ? product.id : '';
+  document.getElementById('pf-name').value = product ? product.name : '';
+  document.getElementById('pf-cat').value = product ? product.cat : '';
+  document.getElementById('pf-price').value = product ? product.price : '';
+  document.getElementById('pf-old-price').value = product ? (product.old_price || '') : '';
+  document.getElementById('pf-badge').value = product ? (product.badge || '') : '';
+  document.getElementById('pf-colors').value = product ? product.colors : 1;
+  document.getElementById('pf-depts').value = product ? (Array.isArray(product.d) ? product.d.join(', ') : '') : '';
+  document.getElementById('pf-dots').value = product ? (Array.isArray(product.dots) ? product.dots.join(', ') : '') : '';
+  document.getElementById('pf-rating').value = product ? product.rating : '';
+  document.getElementById('pf-reviews').value = product ? product.reviews : 0;
+  document.getElementById('pf-image').value = product ? (product.image_url || '') : '';
+  modal.style.display = 'flex';
+}
+
+function closeProductModal() {
+  document.getElementById('product-modal').style.display = 'none';
+}
+
+async function saveProduct(e) {
+  e.preventDefault();
+  const id = document.getElementById('pf-id').value;
+  const name = document.getElementById('pf-name').value.trim();
+  const cat = document.getElementById('pf-cat').value.trim();
+  const price = document.getElementById('pf-price').value.trim();
+  const n = parseFloat(price.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+  const old_price = document.getElementById('pf-old-price').value.trim();
+  const badge = document.getElementById('pf-badge').value;
+  const colors = parseInt(document.getElementById('pf-colors').value) || 1;
+  const d = document.getElementById('pf-depts').value.split(',').map(s => s.trim()).filter(Boolean);
+  const dots = document.getElementById('pf-dots').value.split(',').map(s => s.trim()).filter(Boolean);
+  const rating = document.getElementById('pf-rating').value.trim() || '0';
+  const reviews = parseInt(document.getElementById('pf-reviews').value) || 0;
+  const image_url = document.getElementById('pf-image').value.trim();
+
+  const payload = { name, cat, price, n, old_price, badge, colors, d, dots, rating, reviews, image_url };
+
+  if (id) {
+    const { error } = await supabase.from('products').update(payload).eq('id', id);
+    if (error) { alert('Erreur lors de la modification: ' + error.message); return; }
+  } else {
+    const { error } = await supabase.from('products').insert(payload);
+    if (error) { alert('Erreur lors de l\'ajout: ' + error.message); return; }
+  }
+  closeProductModal();
+  await loadAdminProducts();
+  await loadProducts();
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Supprimer ce produit ?')) return;
+  const { error } = await supabase.from('products').delete().eq('id', id);
+  if (error) { alert('Erreur: ' + error.message); return; }
+  await loadAdminProducts();
+  await loadProducts();
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    errEl.textContent = 'Courriel ou mot de passe incorrect.';
+    errEl.style.display = 'block';
+    return;
+  }
+  state.session = data.session;
+  location.hash = '#/admin';
+  await loadAdminProducts();
+  render();
+}
+
+async function handleLogout(e) {
+  e.preventDefault();
+  await supabase.auth.signOut();
+  state.session = null;
+  location.hash = '#/';
+  render();
+}
 
 // ---------- Routeur ----------
 const routes = {
@@ -273,6 +504,8 @@ const routes = {
   '/outlet': () => pagePlp('outlet'),
   '/produit': pagePdp,
   '/recherche': pageSearch,
+  '/connexion': pageLogin,
+  '/admin': pageAdmin,
 };
 
 function render() {
@@ -281,24 +514,52 @@ function render() {
   app.innerHTML = promoBar() + header() + page() + footer();
   bind();
   startHeroCycle();
-  window.scrollTo(0, 0);
+  if (path !== '' && path !== '/') window.scrollTo(0, 0);
 }
 
 function bind() {
   const input = document.getElementById('search-input');
-  input.addEventListener('input', (e) => {
-    state.q = e.target.value;
-    if (state.q.trim()) {
-      if (location.hash !== '#/recherche') location.hash = '#/recherche';
-      else { app.querySelector('main').outerHTML = pageSearch(); }
-    } else if (location.hash === '#/recherche') {
-      location.hash = '#/';
-    }
-    const el = document.getElementById('search-input');
-    el.focus(); el.setSelectionRange(el.value.length, el.value.length);
-  });
+  if (input) {
+    input.addEventListener('input', (e) => {
+      state.q = e.target.value;
+      if (state.q.trim()) {
+        if (location.hash !== '#/recherche') location.hash = '#/recherche';
+        else { const m = app.querySelector('main'); if (m) m.outerHTML = pageSearch(); }
+      } else if (location.hash === '#/recherche') {
+        location.hash = '#/';
+      }
+      const el = document.getElementById('search-input');
+      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    });
+  }
   const sort = document.getElementById('sort-select');
   if (sort) sort.addEventListener('change', (e) => { state.sort = e.target.value; render(); });
+
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) loginForm.addEventListener('submit', handleLogin);
+
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+
+  const newBtn = document.getElementById('new-product-btn');
+  if (newBtn) newBtn.addEventListener('click', () => openProductModal(null));
+
+  document.querySelectorAll('.admin-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = state.adminProducts.find(x => x.id === btn.dataset.id);
+      if (p) openProductModal(p);
+    });
+  });
+  document.querySelectorAll('.admin-delete').forEach(btn => {
+    btn.addEventListener('click', () => deleteProduct(btn.dataset.id));
+  });
+
+  const modalClose = document.getElementById('modal-close');
+  if (modalClose) modalClose.addEventListener('click', closeProductModal);
+  const modalCancel = document.getElementById('modal-cancel');
+  if (modalCancel) modalCancel.addEventListener('click', closeProductModal);
+  const productForm = document.getElementById('product-form');
+  if (productForm) productForm.addEventListener('submit', saveProduct);
 }
 
 let heroTimer = null;
@@ -318,4 +579,11 @@ function startHeroCycle() {
 }
 
 window.addEventListener('hashchange', render);
-render();
+
+// ---------- Init ----------
+(async () => {
+  const { data } = await supabase.auth.getSession();
+  state.session = data.session;
+  await loadProducts();
+  render();
+})();
