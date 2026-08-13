@@ -233,7 +233,7 @@ main.pad, div.pad { padding: 28px 40px 64px; }
 }
 
 /* Campaign band */
-.campaign-band { position: relative; min-height: 480px; display: flex; align-items: center; justify-content: center; background-size: cover; background-position: center; background-repeat: no-repeat; background-color: var(--noir); overflow: hidden; }
+.campaign-band { position: relative; min-height: 480px; display: flex; align-items: center; justify-content: center; background-size: cover; background-position: center; background-repeat: no-repeat; background-color: var(--noir); overflow: hidden; margin: 0 40px; border-radius: 12px; }
 .campaign-overlay { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(22,22,26,.82) 0%, rgba(22,22,26,.5) 50%, rgba(22,22,26,.82) 100%); }
 .campaign-inner { position: relative; z-index: 1; text-align: center; padding: 48px 40px; max-width: 640px; }
 .campaign-inner .eyebrow { margin-bottom: 12px; }
@@ -252,7 +252,7 @@ main.pad, div.pad { padding: 28px 40px 64px; }
 .checkbox-label input { width: 18px; height: 18px; }
 
 @media (max-width: 900px) {
-  .campaign-band { min-height: 360px; }
+  .campaign-band { min-height: 360px; margin: 0 16px; }
   .campaign-inner { padding: 32px 20px; }
   .campaign-inner p { font-size: 16px; }
   .admin-campaign { padding: 20px; }
