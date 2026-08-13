@@ -41,9 +41,10 @@ function saveCart() {
 function cartCount() { return state.cart.reduce((s, i) => s + i.qty, 0); }
 function cartTotal() { return state.cart.reduce((s, i) => s + i.qty * i.price, 0); }
 function addToCart(item) {
+  const qty = item.qty || 1;
   const existing = state.cart.find(i => i.productId === item.productId && i.color === item.color && i.size === item.size);
-  if (existing) existing.qty += 1;
-  else state.cart.push({ ...item, qty: 1 });
+  if (existing) existing.qty += qty;
+  else state.cart.push({ ...item, qty });
   saveCart();
   updateCartBadge();
   openCartDrawer();
@@ -242,7 +243,7 @@ const card = (p, big = true) => `
       <div class="card-name-row">
         <div class="card-name">${p.name}</div>
         <button class="card-add-btn" data-id="${p.id || ''}" title="Ajouter au panier" aria-label="Ajouter au panier">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
         </button>
       </div>
       <div class="card-cat">${p.cat}</div>
@@ -1367,6 +1368,7 @@ function bind() {
         color: firstSku.color || '',
         size: firstSku.size || '',
         image_url: mp.image_url,
+        qty: 1,
       });
     });
   });
@@ -1441,6 +1443,7 @@ function bind() {
         price: parseFloat(firstSku.price) || 0,
         color, size,
         image_url: mp.image_url,
+        qty: 1,
       });
     });
   }
