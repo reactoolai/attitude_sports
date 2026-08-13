@@ -232,6 +232,32 @@ main.pad, div.pad { padding: 28px 40px 64px; }
   .footer-bottom { flex-direction: column; gap: 10px; text-align: center; }
 }
 
+/* Campaign band */
+.campaign-band { position: relative; min-height: 480px; display: flex; align-items: center; justify-content: center; background-size: cover; background-position: center; background-repeat: no-repeat; background-color: var(--noir); overflow: hidden; }
+.campaign-overlay { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(22,22,26,.82) 0%, rgba(22,22,26,.5) 50%, rgba(22,22,26,.82) 100%); }
+.campaign-inner { position: relative; z-index: 1; text-align: center; padding: 48px 40px; max-width: 640px; }
+.campaign-inner .eyebrow { margin-bottom: 12px; }
+.campaign-inner h2 { font-size: clamp(36px, 5vw, 56px); color: var(--craie); line-height: 1; margin-bottom: 16px; }
+.campaign-inner p { color: var(--craie); font-size: 18px; font-weight: 300; line-height: 1.5; margin: 0 0 28px; }
+.campaign-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+/* Admin campaign form */
+.admin-campaign { background: #fff; padding: 28px 32px; margin-bottom: 32px; }
+.admin-campaign-head h2 { font-size: 22px; margin-bottom: 4px; }
+.campaign-form { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
+.campaign-form label { display: flex; flex-direction: column; gap: 6px; font-family: var(--saira); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--noir); }
+.campaign-form input, .campaign-form textarea { font-family: var(--jost); font-weight: 300; font-size: 14px; border: 1px solid var(--gris); padding: 10px 12px; text-transform: none; letter-spacing: 0; resize: vertical; }
+.campaign-form input:focus, .campaign-form textarea:focus { outline: none; border-color: var(--orange); }
+.checkbox-label { flex-direction: row !important; align-items: center; gap: 10px !important; text-transform: none !important; font-family: var(--jost) !important; font-weight: 400 !important; font-size: 14px !important; letter-spacing: 0 !important; }
+.checkbox-label input { width: 18px; height: 18px; }
+
+@media (max-width: 900px) {
+  .campaign-band { min-height: 360px; }
+  .campaign-inner { padding: 32px 20px; }
+  .campaign-inner p { font-size: 16px; }
+  .admin-campaign { padding: 20px; }
+}
+
 /* ---------- Admin ---------- */
 .admin-auth { min-height: 70vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
 .auth-card { background: #fff; padding: 48px 40px; max-width: 440px; width: 100%; text-align: center; }

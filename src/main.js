@@ -3,7 +3,25 @@ import { DEPTS, NEW_ARRIVALS, BENEFITS, FOOTER_COLS, FITS, TECHS, DISCOUNTS, RAT
 import { supabase } from './supabase.js';
 
 const app = document.getElementById('app');
-const state = { sort: 'featured', q: '', products: [], adminProducts: [], session: null, loadingProducts: false };
+const state = { sort: 'featured', q: '', products: [], adminProducts: [], session: null, loadingProducts: false, campaign: null };
+
+const DEFAULT_CAMPAIGN = {
+  eyebrow: 'Rentrée 2026',
+  title: 'Bouge avec confiance',
+  description: 'La rentrée commence avec une attitude qui te ressemble.',
+  image_url: '/images/back_to_school.png',
+  men_label: 'Magasiner hommes',
+  men_link: '#/hommes',
+  women_label: 'Magasiner femmes',
+  women_link: '#/femmes',
+  enabled: true,
+};
+
+async function loadCampaign() {
+  const { data, error } = await supabase.from('home_campaigns').select('*').eq('id', 'homepage-main').maybeSingle();
+  if (error) { console.error('loadCampaign error:', error); return; }
+  state.campaign = data || DEFAULT_CAMPAIGN;
+}
 
 // ---------- Supabase product loading ----------
 async function loadProducts() {
@@ -158,6 +176,7 @@ const pageHome = () => `
       </div>
     </div>
   </section>
+  ${state.campaign && state.campaign.enabled !== false ? campaignSection(state.campaign) : ''}
   <section class="cats">
     ${[['hommes', 'Hommes', '/images/V5-6008988-008_BC.png'], ['femmes', 'Femmes', '/woman.png'], ['enfants', 'Enfants', '/enfant.png']].map(([slug, name, img]) => `
       <a href="#/${slug}" class="cat-tile" style="background-image:url('${img}')">
@@ -184,6 +203,20 @@ const pageHome = () => `
     ${BENEFITS.map(b => `<div><strong>${b.t}</strong><span>${b.d}</span></div>`).join('')}
   </section>
 </main>`;
+
+const campaignSection = (c) => `
+<section class="campaign-band" style="background-image:url('${c.image_url}')">
+  <div class="campaign-overlay"></div>
+  <div class="campaign-inner">
+    <div class="eyebrow">${c.eyebrow || ''}</div>
+    <h2>${c.title || ''}</h2>
+    <p>${c.description || ''}</p>
+    <div class="campaign-ctas">
+      <a href="${c.men_link || '#/hommes'}" class="btn orange">${c.men_label || 'Magasiner hommes'}</a>
+      <a href="${c.women_link || '#/femmes'}" class="btn ghost">${c.women_label || 'Magasiner femmes'}</a>
+    </div>
+  </div>
+</section>`;
 
 function getNewArrivals() {
   if (state.products.length === 0) return NEW_ARRIVALS;
@@ -341,6 +374,31 @@ const pageAdmin = () => {
     <div class="stat-card"><span class="stat-num">${products.filter(p => p.badge === 'Nouveau').length}</span><span class="stat-label">Nouveautés</span></div>
     <div class="stat-card"><span class="stat-num">${products.filter(p => p.badge === 'Solde').length}</span><span class="stat-label">En solde</span></div>
   </div>
+  <div class="admin-campaign">
+    <div class="admin-campaign-head">
+      <h2>Section campagne (accueil)</h2>
+      <p class="admin-sub">Modifie la bannière promotionnelle affichée sous le hero de la page d'accueil.</p>
+    </div>
+    <form id="campaign-form" class="campaign-form">
+      <div class="form-row">
+        <label>Petit titre (eyebrow)<input type="text" id="cf-eyebrow" value="${(state.campaign && state.campaign.eyebrow) || ''}"></label>
+        <label>Titre principal<input type="text" id="cf-title" value="${(state.campaign && state.campaign.title) || ''}"></label>
+      </div>
+      <label>Description<textarea id="cf-description" rows="2">${(state.campaign && state.campaign.description) || ''}</textarea></label>
+      <label>URL de l'image<input type="text" id="cf-image" value="${(state.campaign && state.campaign.image_url) || ''}"></label>
+      <div class="form-row">
+        <label>Texte bouton hommes<input type="text" id="cf-men-label" value="${(state.campaign && state.campaign.men_label) || ''}"></label>
+        <label>Lien bouton hommes<input type="text" id="cf-men-link" value="${(state.campaign && state.campaign.men_link) || ''}"></label>
+      </div>
+      <div class="form-row">
+        <label>Texte bouton femmes<input type="text" id="cf-women-label" value="${(state.campaign && state.campaign.women_label) || ''}"></label>
+        <label>Lien bouton femmes<input type="text" id="cf-women-link" value="${(state.campaign && state.campaign.women_link) || ''}"></label>
+      </div>
+      <label class="checkbox-label"><input type="checkbox" id="cf-enabled" ${(!state.campaign || state.campaign.enabled !== false) ? 'checked' : ''}> Afficher la section sur la page d'accueil</label>
+      <div id="campaign-error" class="auth-error" style="display:none;"></div>
+      <button type="submit" class="btn orange">Enregistrer la campagne</button>
+    </form>
+  </div>
   <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
@@ -468,6 +526,34 @@ async function deleteProduct(id) {
   await loadProducts();
 }
 
+async function saveCampaign(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('campaign-error');
+  errEl.style.display = 'none';
+  const payload = {
+    id: 'homepage-main',
+    eyebrow: document.getElementById('cf-eyebrow').value.trim(),
+    title: document.getElementById('cf-title').value.trim(),
+    description: document.getElementById('cf-description').value.trim(),
+    image_url: document.getElementById('cf-image').value.trim(),
+    men_label: document.getElementById('cf-men-label').value.trim(),
+    men_link: document.getElementById('cf-men-link').value.trim(),
+    women_label: document.getElementById('cf-women-label').value.trim(),
+    women_link: document.getElementById('cf-women-link').value.trim(),
+    enabled: document.getElementById('cf-enabled').checked,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabase.from('home_campaigns').upsert(payload, { onConflict: 'id' });
+  if (error) {
+    errEl.textContent = 'Erreur lors de l\'enregistrement: ' + error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+  await loadCampaign();
+  alert('Campagne enregistrée avec succès.');
+  render();
+}
+
 async function handleLogin(e) {
   e.preventDefault();
   const email = document.getElementById('login-email').value.trim();
@@ -560,6 +646,9 @@ function bind() {
   if (modalCancel) modalCancel.addEventListener('click', closeProductModal);
   const productForm = document.getElementById('product-form');
   if (productForm) productForm.addEventListener('submit', saveProduct);
+
+  const campaignForm = document.getElementById('campaign-form');
+  if (campaignForm) campaignForm.addEventListener('submit', saveCampaign);
 }
 
 let heroTimer = null;
@@ -585,5 +674,6 @@ window.addEventListener('hashchange', render);
   const { data } = await supabase.auth.getSession();
   state.session = data.session;
   await loadProducts();
+  await loadCampaign();
   render();
 })();
