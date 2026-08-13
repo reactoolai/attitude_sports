@@ -562,7 +562,7 @@ async function handleLogin(e) {
   errEl.style.display = 'none';
   const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
   if (error) {
-    errEl.textContent = 'Courriel ou mot de passe incorrect.';
+    errEl.textContent = error.message || 'Courriel ou mot de passe incorrect.';
     errEl.style.display = 'block';
     return;
   }
