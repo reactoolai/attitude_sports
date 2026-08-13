@@ -239,7 +239,12 @@ const card = (p, big = true) => `
     </div>
     <div class="card-body">
       <div class="dots">${(p.colorsList || []).slice(0, 5).map(c => `<span style="background:${realColor(c)}" title="${c}"></span>`).join('')}${p.colors > 5 ? '<em>+</em>' : ''}<em>${p.colors} couleur${p.colors > 1 ? 's' : ''}</em></div>
-      <div class="card-name">${p.name}</div>
+      <div class="card-name-row">
+        <div class="card-name">${p.name}</div>
+        <button class="card-add-btn" data-id="${p.id || ''}" title="Ajouter au panier" aria-label="Ajouter au panier">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        </button>
+      </div>
       <div class="card-cat">${p.cat}</div>
       <div class="card-price">
         ${p.oldPrice
@@ -248,9 +253,6 @@ const card = (p, big = true) => `
       </div>
     </div>
   </a>
-  <button class="card-add-btn" data-id="${p.id || ''}" title="Ajouter au panier">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
-  </button>
 </div>`;
 
 const cartDrawerHtml = () => `
