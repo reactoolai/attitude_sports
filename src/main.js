@@ -34,9 +34,9 @@ async function loadCampaign() {
 async function loadProducts() {
   state.loadingProducts = true;
   const [{ data: prods, error: pe }, { data: skus, error: se }, { data: imgs, error: ie }] = await Promise.all([
-    supabase.from('products').select('*').order('created_at', { ascending: false }),
-    supabase.from('skus').select('*'),
-    supabase.from('product_images').select('*'),
+    supabase.from('products').select('*').order('created_at', { ascending: false }).limit(10000),
+    supabase.from('skus').select('*').limit(10000),
+    supabase.from('product_images').select('*').limit(10000),
   ]);
   if (pe) console.error('loadProducts error:', pe);
   if (se) console.error('loadSkus error:', se);
@@ -834,9 +834,9 @@ const pageAdmin = () => {
 // ---------- Admin logic ----------
 async function loadAdminProducts() {
   const [{ data: prods, error: pe }, { data: skus, error: se }, { data: imgs, error: ie }] = await Promise.all([
-    supabase.from('products').select('*').order('created_at', { ascending: false }),
-    supabase.from('skus').select('*'),
-    supabase.from('product_images').select('*'),
+    supabase.from('products').select('*').order('created_at', { ascending: false }).limit(10000),
+    supabase.from('skus').select('*').limit(10000),
+    supabase.from('product_images').select('*').limit(10000),
   ]);
   if (pe) console.error('admin products error:', pe);
   if (se) console.error('admin skus error:', se);
