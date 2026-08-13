@@ -148,7 +148,7 @@ const heroGallery = () => {
 const card = (p, big = true) => `
 <a href="#/produit" class="card" data-id="${p.id || ''}">
   <div class="card-img ${big ? '' : 'sm'}">
-    ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;">` : '<span class="ph-label">[ photo produit ]</span>'}
+    ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='<span class=\"ph-label\">[ photo produit ]</span>'">` : '<span class="ph-label">[ photo produit ]</span>'}
     ${p.badge ? `<span class="badge ${p.badge === 'Nouveau' ? 'orange' : ''}">${p.badge}</span>` : ''}
   </div>
   <div class="card-body">
@@ -380,10 +380,10 @@ const pagePdp = () => {
   const desc = p.description_fr || p.description_web || p.description_en || '';
   const related = state.products.filter(x => x.id !== p.id && x.category === p.category).slice(0, 4).map(mapProduct);
   const galleryHtml = imgs.length > 0
-    ? `<div class="thumbs">${imgs.map((i, idx) => `<div class="thumb${idx === 0 ? ' active' : ''}" data-idx="${idx}"><img src="${i.image_url}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`).join('')}</div>
+    ? `<div class="thumbs">${imgs.map((i, idx) => `<div class="thumb${idx === 0 ? ' active' : ''}" data-idx="${idx}"><img src="${i.image_url}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;"></div>`).join('')}</div>
        <div class="gallery-main">
          <button class="gal-nav gal-prev" type="button" aria-label="Photo précédente">&#8249;</button>
-         <img id="gal-main-img" src="${imgs[0].image_url}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;">
+         <img id="gal-main-img" src="${imgs[0].image_url}" alt="${p.name}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;">
          <button class="gal-nav gal-next" type="button" aria-label="Photo suivante">&#8250;</button>
          <span class="gal-counter" id="gal-counter">1 / ${imgs.length}</span>
        </div>`
@@ -728,7 +728,7 @@ function adminProductDetail(product) {
           ${images.length > 0
             ? images.slice(0, 8).map((img, i) => `
               <div class="adm-img-thumb" data-filename="${img.filename}">
-                <img src="${img.image_url || ''}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
+                <img src="${img.image_url || ''}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
                 <div class="adm-img-placeholder"><span>${i + 1}</span></div>
                 <div class="adm-img-name">${img.image_number === 1 ? 'Front' : img.image_number === 2 ? 'Back' : 'Detail ' + img.image_number}</div>
               </div>`).join('')
