@@ -380,8 +380,13 @@ const pagePdp = () => {
   const desc = p.description_fr || p.description_web || p.description_en || '';
   const related = state.products.filter(x => x.id !== p.id && x.category === p.category).slice(0, 4).map(mapProduct);
   const galleryHtml = imgs.length > 0
-    ? `<div class="thumbs">${imgs.slice(0, 4).map(i => `<div><img src="${i.image_url}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`).join('')}</div>
-       <div class="gallery-main"><img src="${imgs[0].image_url}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;"></div>`
+    ? `<div class="thumbs">${imgs.map((i, idx) => `<div class="thumb${idx === 0 ? ' active' : ''}" data-idx="${idx}"><img src="${i.image_url}" alt="" style="width:100%;height:100%;object-fit:cover;"></div>`).join('')}</div>
+       <div class="gallery-main">
+         <button class="gal-nav gal-prev" type="button" aria-label="Photo précédente">&#8249;</button>
+         <img id="gal-main-img" src="${imgs[0].image_url}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;">
+         <button class="gal-nav gal-next" type="button" aria-label="Photo suivante">&#8250;</button>
+         <span class="gal-counter" id="gal-counter">1 / ${imgs.length}</span>
+       </div>`
     : `${ph('photo produit principale', 'gallery-main')}`;
   return `
 <main class="pad">
@@ -395,12 +400,14 @@ const pagePdp = () => {
       <h1>${p.name}</h1>
       <div class="pdp-cat">${deptLabel}${catLabel ? ' · ' + catLabel : ''}</div>
       <div class="pdp-price">${oldPrice ? `<span class="sale">${price}</span> <span class="old">${oldPrice}</span>` : price}</div>
-      ${colors.length > 0 ? `<div class="filter-title">Couleur : ${colors[0]}</div>
-      <div class="swatches lg">
-        ${colors.map((c, i) => `<span ${i === 0 ? 'class="sel"' : ''} style="background:${stringToColor(c)}" title="${c}"></span>`).join('')}
-      </div>` : ''}
+      ${colors.length > 0 ? `<div class="filter-title">Couleur : <span id="selected-color-name">${colors[0]}</span></div>
+      <div class="swatches lg" id="color-swatches">
+        ${colors.map((c, i) => `<span class="color-swatch${i === 0 ? ' sel' : ''}" data-color="${c}" style="background:${stringToColor(c)}" title="${c}"></span>`).join('')}
+      </div>
+      <div class="color-count">${colors.length} couleur${colors.length > 1 ? 's' : ''} disponible${colors.length > 1 ? 's' : ''}</div>` : ''}
       ${sizes.length > 0 ? `<div class="size-head"><span class="filter-title">Taille</span><a href="#">Guide des tailles</a></div>
-      <div class="sizes-grid">${sizes.slice(0, 8).map(s => `<span class="size">${s}</span>`).join('')}</div>` : ''}
+      <div class="sizes-grid" id="sizes-grid">${sizes.map(s => `<span class="size">${s}</span>`).join('')}</div>
+      <div class="size-count">${sizes.length} taille${sizes.length > 1 ? 's' : ''} disponible${sizes.length > 1 ? 's' : ''}</div>` : ''}
       <button class="btn orange full">Ajouter au panier</button>
       <div class="pdp-ship">Livraison gratuite à partir de 150 $ · Retours sous 60 jours</div>
       ${desc ? `<div class="acc open"><div class="acc-head">Description <span>+</span></div>
@@ -656,15 +663,18 @@ function adminInventory() {
       <table class="adm-table">
         <thead>
           <tr>
-            <th>Produit</th><th>Ref.</th><th>Categorie</th><th>Dept.</th><th>Fournisseur</th><th>Saison</th><th>Prix</th><th>Stock</th><th>SKUs</th><th>Img</th><th></th>
+            <th>Produit</th><th>Ref.</th><th>Categorie</th><th>Dept.</th><th>Fournisseur</th><th>Saison</th><th>Couleurs</th><th>Tailles</th><th>Prix</th><th>Stock</th><th>SKUs</th><th>Img</th><th></th>
           </tr>
         </thead>
         <tbody>
           ${pageProducts.map(p => {
             const stock = getProductStock(p);
-            const skuCount = state.adminSkus.filter(s => s.product_id === p.id).length;
+            const skus = state.adminSkus.filter(s => s.product_id === p.id);
+            const skuCount = skus.length;
             const imgCount = state.adminImages.filter(i => i.numref === p.numref).length;
             const stockClass = stock === 0 ? 'out' : stock <= 5 ? 'low' : 'ok';
+            const colors = [...new Set(skus.map(s => s.color).filter(Boolean))];
+            const sizes = [...new Set(skus.map(s => s.size).filter(Boolean))];
             return `
             <tr class="adm-row-click" data-id="${p.id}">
               <td><div class="adm-prod-cell"><span class="adm-prod-name">${p.name || '—'}</span></div></td>
@@ -673,6 +683,8 @@ function adminInventory() {
               <td>${p.department || '—'}</td>
               <td>${p.supplier || '—'}</td>
               <td>${p.season || '—'}</td>
+              <td>${colors.length > 0 ? `<div class="adm-color-cells">${colors.map(c => `<span class="adm-color-cell" title="${c}" style="background:${stringToColor(c)}"></span>`).join('')}<span class="adm-color-count">${colors.length}</span></div>` : '—'}</td>
+              <td>${sizes.length > 0 ? `<div class="adm-size-cells">${sizes.map(s => `<span class="adm-size-cell">${s}</span>`).join('')}</div>` : '—'}</td>
               <td><span class="adm-price">${fmtPrice(getProductPrice(p))}</span></td>
               <td><span class="adm-stock adm-stock-${stockClass}">${stock}</span></td>
               <td>${skuCount}</td>
@@ -1010,6 +1022,47 @@ function bind() {
       e.preventDefault();
       state.selectedProductId = c.dataset.id;
       location.hash = '#/produit';
+    });
+  });
+
+  // PDP gallery navigation
+  const galMain = document.getElementById('gal-main-img');
+  if (galMain) {
+    const p = state.products.find(x => x.id === state.selectedProductId);
+    const imgs = p ? state.storeImages.filter(i => i.numref === p.numref).sort((a, b) => a.image_number - b.image_number) : [];
+    let galIdx = 0;
+    const counter = document.getElementById('gal-counter');
+    const thumbs = document.querySelectorAll('.thumb');
+    function showGal(i) {
+      if (i < 0) i = imgs.length - 1;
+      if (i >= imgs.length) i = 0;
+      galIdx = i;
+      galMain.src = imgs[i].image_url;
+      if (counter) counter.textContent = `${i + 1} / ${imgs.length}`;
+      thumbs.forEach((t, ti) => t.classList.toggle('active', ti === i));
+    }
+    thumbs.forEach(t => t.addEventListener('click', () => showGal(parseInt(t.dataset.idx))));
+    const prevBtn = document.querySelector('.gal-prev');
+    const nextBtn = document.querySelector('.gal-next');
+    if (prevBtn) prevBtn.addEventListener('click', () => showGal(galIdx - 1));
+    if (nextBtn) nextBtn.addEventListener('click', () => showGal(galIdx + 1));
+  }
+
+  // PDP color swatch selection
+  document.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('sel'));
+      sw.classList.add('sel');
+      const label = document.getElementById('selected-color-name');
+      if (label) label.textContent = sw.dataset.color;
+    });
+  });
+
+  // PDP size selection
+  document.querySelectorAll('#sizes-grid .size').forEach(sz => {
+    sz.addEventListener('click', () => {
+      document.querySelectorAll('#sizes-grid .size').forEach(s => s.classList.remove('selected'));
+      sz.classList.add('selected');
     });
   });
 }
