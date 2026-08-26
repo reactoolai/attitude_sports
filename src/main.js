@@ -2512,8 +2512,8 @@ const routes = {
   '/connexion': pageLogin,
   '/admin': pageAdmin,
   '/commande': pageCheckout,
-  '/a-propos': pageAbout,
-  '/nous-joindre': pageContact,
+  '/a-propos': () => pageAbout,
+  '/nous-joindre': () => pageContact,
 };
 
 function getCurrentPath() {
