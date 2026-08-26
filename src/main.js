@@ -918,7 +918,7 @@ const pagePdp = () => {
     ? [...new Set(skus.filter(s => s.color === selectedColor).map(s => s.size).filter(Boolean))]
     : sizes;
   const colorImgs = selectedColor ? allImgs.filter(i => i.color === selectedColor) : [];
-  const imgs = (colorImgs.length > 0 ? colorImgs : allImgs).slice(0, 6);
+  const imgs = colorImgs.length > 0 ? colorImgs : allImgs;
   const firstSku = skus[0] || {};
   const rawPrice = firstSku.price || p.price || '';
   const price = rawPrice ? fmtPrice(rawPrice) : '';
