@@ -197,13 +197,13 @@ body.cart-open .cart-drawer { transform: translateX(0); }
 .empty { text-align: center; padding: 64px 0; color: var(--gris); font-weight: 300; font-size: 16px; }
 
 /* PDP */
-.pdp { display: grid; grid-template-columns: 1fr 420px; gap: 48px; align-items: start; }
+.pdp { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
 .gallery { display: grid; grid-template-columns: 72px 1fr; gap: 14px; }
 .thumbs { display: flex; flex-direction: column; gap: 10px; }
 .thumbs > div { height: 88px; border: 2px solid #E0DDD4; cursor: pointer; overflow: hidden; transition: border-color .15s ease; background: #fff; }
 .thumbs > div:hover { border-color: var(--noir); }
 .thumbs > div.active { border-color: var(--noir); border-width: 2px; }
-.gallery-main { aspect-ratio: 3 / 4; max-height: 640px; position: relative; overflow: hidden; }
+.gallery-main { aspect-ratio: 3 / 4; max-height: 520px; position: relative; overflow: hidden; }
 .gal-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; background: rgba(255,255,255,.85); border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--noir); transition: background .15s ease; }
 .gal-nav:hover { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
 .gal-prev { left: 12px; }
@@ -214,7 +214,7 @@ body.cart-open .cart-drawer { transform: translateX(0); }
 .sizes-grid .size.selected { background: var(--noir); color: var(--craie); border-color: var(--noir); }
 .sizes-grid .size.disabled { opacity: .35; cursor: not-allowed; text-decoration: line-through; }
 .sizes-grid .size.disabled:hover { border-color: var(--gris); }
-.buybox { display: flex; flex-direction: column; gap: 18px; }
+.buybox { display: flex; flex-direction: column; gap: 14px; }
 .buybox h1 { font-size: 30px; line-height: 1.05; }
 .pdp-cat { color: var(--gris); font-weight: 300; font-size: 15px; }
 .pdp-price { font-family: var(--saira); font-weight: 800; font-size: 26px; }
