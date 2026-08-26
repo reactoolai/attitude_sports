@@ -468,16 +468,15 @@ const footer = () => `
 const threeShops = () => `
 <section class="three-shops">
   <div class="three-shops-inner">
-    <h2>Découvrez nos trois boutiques</h2>
-    <p class="three-shops-sub">Trois adresses, une même passion du vêtement bien choisi.</p>
+    <h2>Découvrez nos deux autres boutiques</h2>
+    <p class="three-shops-sub">Deux adresses, une même passion du vêtement bien choisi.</p>
     <div class="three-shops-grid">
-      ${THREE_SHOPS.map(s => `
-        <div class="shop-card${s.current ? ' shop-current' : ''}">
-          ${s.current ? '<span class="shop-here">Vous êtes ici</span>' : ''}
-          <div class="shop-logo"><img src="${s.logo}" alt="${s.name}"></div>
+      ${THREE_SHOPS.filter(s => !s.current).map((s, index) => `
+        <div class="shop-card">
+          <div class="shop-logo"><img src="${index === 0 ? '/images/logos/lechoixdesophie-logo copy.jpg' : '/images/logos/lemercier-logo copy.jpg'}" alt="${s.name}"></div>
           <h3>${s.name}</h3>
           <p>${s.desc}</p>
-          <a href="${s.href}"${s.internal ? ' data-link' : ' target="_blank" rel="noopener noreferrer"'} class="btn ${s.current ? 'ghost' : 'orange'}">${s.current ? 'Vous êtes ici' : 'Visiter'}</a>
+          <a href="${s.href}" target="_blank" rel="noopener noreferrer" class="btn orange">Visiter</a>
         </div>`).join('')}
     </div>
   </div>

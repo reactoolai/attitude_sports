@@ -843,7 +843,7 @@ body.mobile-search-open .mobile-search-overlay { display: block; }
 .three-shops-inner { max-width: 1200px; margin: 0 auto; text-align: center; }
 .three-shops h2 { font-family: var(--archivo); font-style: italic; font-weight: 900; font-size: clamp(28px, 4vw, 40px); text-transform: uppercase; margin-bottom: 8px; }
 .three-shops-sub { color: var(--gris); font-size: 16px; font-weight: 300; margin-bottom: 40px; }
-.three-shops-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.three-shops-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; max-width: 800px; margin: 0 auto; }
 .shop-card { background: var(--acier); border-radius: 12px; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; position: relative; transition: transform .2s ease, box-shadow .2s ease; }
 .shop-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,.3); }
 .shop-card.shop-current { border: 2px solid var(--orange); }
