@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /admin
+Disallow: /connexion
+Disallow: /commande
+
+Sitemap: https://attitudesport.ca/sitemap.xml
