@@ -2784,10 +2784,27 @@ function render(preserveScroll = false) {
     if (squareCardInstance) { try { squareCardInstance.destroy(); } catch {} squareCardInstance = null; }
     squareCardAttached = false;
   }
-  app.innerHTML = promoBar() + header() + page() + threeShops() + footer() + cartDrawerHtml() + mobileSearchHtml();
-  bind();
-  startHeroCycle();
-  updateCartBadge();
+  const pageHtml = page();
+  if (typeof pageHtml === 'string') {
+    app.innerHTML = promoBar() + header() + pageHtml + threeShops() + footer() + cartDrawerHtml() + mobileSearchHtml();
+    bind();
+    startHeroCycle();
+    updateCartBadge();
+  } else {
+    app.innerHTML = promoBar() + header() + '<main class="pad"><div class="empty">Chargement…</div></main>' + threeShops() + footer() + cartDrawerHtml() + mobileSearchHtml();
+    bind();
+    startHeroCycle();
+    updateCartBadge();
+    Promise.resolve(pageHtml).then(html => {
+      app.innerHTML = promoBar() + header() + html + threeShops() + footer() + cartDrawerHtml() + mobileSearchHtml();
+      bind();
+      startHeroCycle();
+      updateCartBadge();
+      if (routeInfo.route === 'product') updateProductMeta(); else resetMeta();
+      if (!preserveScroll && path !== '/' && path !== '') window.scrollTo(0, 0);
+    });
+    return;
+  }
   // Trigger server-side search when on search page
   if (routeInfo.route === 'search' && state.q && state.q.trim()) {
     const prevQ = state._lastSearchQ;
