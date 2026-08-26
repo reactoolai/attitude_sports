@@ -925,6 +925,7 @@ const pagePdp = () => {
   const oldPrice = firstSku.suggested_price && parseFloat(firstSku.suggested_price) > parseFloat(firstSku.price || 0) ? fmtPrice(firstSku.suggested_price) : '';
   const badge = oldPrice ? 'Solde' : (p.season && p.season.includes('2026') ? 'Nouveau' : '');
   const catLabel = CAT_LABELS[(p.category || '').toUpperCase()] || p.category || '';
+  const deptKey = (p.category || '').toLowerCase();
   const deptLabel = p.department || '';
   const desc = p.description_fr || p.description_web || p.description_en || '';
   const related = state.products.filter(x => x.id !== p.id && x.category === p.category).slice(0, 4).map(mapProduct);
@@ -2802,6 +2803,10 @@ function render(preserveScroll = false) {
       updateCartBadge();
       if (routeInfo.route === 'product') updateProductMeta(); else resetMeta();
       if (!preserveScroll && path !== '/' && path !== '') window.scrollTo(0, 0);
+    }).catch(err => {
+      console.error('render error:', err);
+      app.innerHTML = promoBar() + header() + '<main class="pad"><div class="empty">Une erreur est survenue. <a href="/" data-link>Retour à l\'accueil</a></div></main>' + threeShops() + footer() + cartDrawerHtml() + mobileSearchHtml();
+      bind();
     });
     return;
   }
