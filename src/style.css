@@ -197,7 +197,7 @@ body.cart-open .cart-drawer { transform: translateX(0); }
 .empty { text-align: center; padding: 64px 0; color: var(--gris); font-weight: 300; font-size: 16px; }
 
 /* PDP */
-.pdp { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
+.pdp { display: grid; grid-template-columns: 1fr 380px; gap: 12px; align-items: start; }
 .gallery { display: grid; grid-template-columns: 72px 1fr; gap: 14px; }
 .thumbs { display: flex; flex-direction: column; gap: 10px; }
 .thumbs > div { height: 88px; border: 2px solid #E0DDD4; cursor: pointer; overflow: hidden; transition: border-color .15s ease; background: #fff; }
