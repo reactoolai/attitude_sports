@@ -1532,7 +1532,7 @@ function adminInventory() {
       <table class="adm-table">
         <thead>
           <tr>
-            <th>Produit</th><th>Ref.</th><th>Categorie</th><th>Dept.</th><th>Fournisseur</th><th>Saison</th><th>Couleurs</th><th>Tailles</th><th>Prix</th><th>Stock</th><th>SKUs</th><th>Img</th><th></th>
+            <th>Produit</th><th>Ref.</th><th>Categorie</th><th>Dept.</th><th>Fournisseur</th><th>Saison</th><th>Couleurs</th><th>Tailles</th><th>Prix</th><th>Stock</th><th>SKUs</th><th>Img</th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -1565,13 +1565,16 @@ function adminInventory() {
               <td>${skuCount}</td>
               <td>${imgCount > 0 ? `<div class="adm-thumb-strip" data-id="${p.id}">${state.adminImages.filter(i => i.numref === p.numref).sort((a,b) => a.image_number - b.image_number).slice(0, 3).map(img => `<img src="${proxyImg(img.image_url || '')}" alt="" loading="lazy">`).join('')}<span class="adm-img-count">${imgCount}</span></div>` : '<span class="adm-no-img">Aucune</span>'}</td>
               <td><button class="adm-view-btn" data-id="${p.id}">Details</button></td>
+              <td><button class="adm-delete-btn" data-id="${p.id}" title="Supprimer ce produit">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/><path d="M10 11v6M14 11v6"/></svg>
+              </button></td>
               <td><button class="adm-expand-btn${state.adminExpandedRows[p.id] ? ' expanded' : ''}" data-id="${p.id}" title="Configurer couleurs × tailles">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
               </button></td>
             </tr>
             ${state.adminExpandedRows[p.id] && colors.length > 0 && sizes.length > 0 ? `
             <tr class="adm-matrix-inline-row">
-              <td colspan="14">
+              <td colspan="15">
                 <div class="adm-matrix-inline">
                   <table class="adm-matrix">
                     <thead>
@@ -1670,6 +1673,7 @@ function adminProductDetail(product) {
       <div class="adm-panel">
         <div class="adm-panel-head"><h3>Informations</h3>
           <button class="btn sm orange" id="adm-save-product" data-product-id="${product.id}">Enregistrer</button>
+          <button class="btn sm adm-delete-detail-btn" id="adm-delete-product" data-product-id="${product.id}" data-numref="${product.numref || ''}">Supprimer le produit</button>
         </div>
         <form id="adm-product-form" class="adm-edit-form">
           <div class="adm-info-grid">
@@ -2435,18 +2439,28 @@ function bindAdminInventory() {
       if (p) { state.adminDetailProduct = p; render(); }
     });
   });
-  const exportBtn = document.getElementById('adm-export-csv');
-  if (exportBtn) exportBtn.addEventListener('click', exportInventoryCSV);
-  const importBtn = document.getElementById('adm-import-csv');
-  const csvFileInput = document.getElementById('adm-csv-file');
-  if (importBtn && csvFileInput) {
-    importBtn.addEventListener('click', () => csvFileInput.click());
-    csvFileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) importInventoryCSV(file);
-      csvFileInput.value = '';
+  document.querySelectorAll('.adm-delete-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const productId = btn.dataset.id;
+      const prod = state.adminProducts.find(p => p.id === productId);
+      if (!prod) return;
+      if (!confirm(`Supprimer "${prod.name || prod.numref}" ?\n\nCette action supprimera aussi toutes ses variantes et images. Elle est irréversible.`)) return;
+      (async () => {
+        await supabase.from('skus').delete().eq('product_id', productId);
+        await supabase.from('product_images').delete().eq('numref', prod.numref);
+        const { error } = await supabase.from('products').delete().eq('id', productId);
+        if (error) { alert('Erreur: ' + error.message); return; }
+        state.adminProducts = state.adminProducts.filter(p => p.id !== productId);
+        state.products = state.products.filter(p => p.id !== productId);
+        state.adminSkus = state.adminSkus.filter(s => s.product_id !== productId);
+        state.storeSkus = state.storeSkus.filter(s => s.product_id !== productId);
+        state.adminImages = (state.adminImages || []).filter(i => i.numref !== prod.numref);
+        state.storeImages = state.storeImages.filter(i => i.numref !== prod.numref);
+        render();
+      })();
     });
-  }
+  });
 }
 
 function bindAdminOrders() {
@@ -3213,6 +3227,49 @@ function bind() {
   });
   const admBack = document.getElementById('adm-back');
   if (admBack) admBack.addEventListener('click', () => { state.adminDetailProduct = null; render(); });
+
+  // Admin delete product (inventory table + detail page)
+  async function deleteProduct(productId, numref) {
+    if (!productId) return;
+    const prod = state.adminProducts.find(p => p.id === productId);
+    const name = prod?.name || numref || 'ce produit';
+    if (!confirm(`Supprimer "${name}" ?\n\nCette action supprimera aussi toutes ses variantes (SKUs) et images associées. Elle est irréversible.`)) return;
+    const statusEl = document.getElementById('adm-detail-status');
+    if (statusEl) { statusEl.textContent = 'Suppression en cours...'; statusEl.style.color = '#666'; }
+    await supabase.from('skus').delete().eq('product_id', productId);
+    await supabase.from('product_images').delete().eq('numref', numref);
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (error) {
+      if (statusEl) { statusEl.textContent = 'Erreur: ' + error.message; statusEl.style.color = '#F44336'; }
+      return;
+    }
+    state.adminProducts = state.adminProducts.filter(p => p.id !== productId);
+    state.products = state.products.filter(p => p.id !== productId);
+    state.adminSkus = state.adminSkus.filter(s => s.product_id !== productId);
+    state.storeSkus = state.storeSkus.filter(s => s.product_id !== productId);
+    state.adminImages = (state.adminImages || []).filter(i => i.numref !== numref);
+    state.storeImages = state.storeImages.filter(i => i.numref !== numref);
+    state.adminDetailProduct = null;
+    render();
+  }
+
+  document.querySelectorAll('.adm-delete-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const productId = btn.dataset.id;
+      const prod = state.adminProducts.find(p => p.id === productId);
+      deleteProduct(productId, prod?.numref || '');
+    });
+  });
+
+  const deleteDetailBtn = document.getElementById('adm-delete-product');
+  if (deleteDetailBtn) {
+    deleteDetailBtn.addEventListener('click', () => {
+      const productId = deleteDetailBtn.dataset.productId;
+      const numref = deleteDetailBtn.dataset.numref;
+      deleteProduct(productId, numref);
+    });
+  }
 
   // Admin color picker (pixel color for SKU)
   document.querySelectorAll('.adm-color-picker').forEach(picker => {

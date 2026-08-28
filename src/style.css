@@ -436,6 +436,10 @@ body.cart-open .cart-drawer { transform: translateX(0); }
 .adm-size-cell { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #F5F4F0; font-size: 11px; font-weight: 500; color: var(--noir); }
 .adm-view-btn { border: 1px solid #E0DDD4; background: transparent; border-radius: 6px; padding: 6px 14px; font-family: var(--saira); font-weight: 600; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--noir); cursor: pointer; transition: all .15s ease; }
 .adm-view-btn:hover { background: var(--noir); color: var(--craie); border-color: var(--noir); }
+.adm-delete-btn { border: 1px solid #E0DDD4; border-radius: 6px; background: #FAFAF7; cursor: pointer; padding: 6px 8px; display: flex; align-items: center; justify-content: center; color: #C62828; transition: all .15s ease; }
+.adm-delete-btn:hover { background: #C62828; color: #fff; border-color: #C62828; }
+.adm-delete-detail-btn { background: #C62828; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-family: var(--saira); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: background .15s ease; }
+.adm-delete-detail-btn:hover { background: #D32F2F; }
 
 .adm-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
 .adm-page-btn { border: 1px solid #E0DDD4; background: #fff; border-radius: 8px; width: 38px; height: 38px; font-size: 16px; cursor: pointer; color: var(--noir); transition: all .15s ease; }
