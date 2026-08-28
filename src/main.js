@@ -2431,6 +2431,8 @@ function bindAdminInventory() {
       const content = document.querySelector('.adm-content');
       if (content) content.outerHTML = adminInventory();
       bindAdminInventory();
+      const newSearch = document.getElementById('adm-search');
+      if (newSearch) { newSearch.focus(); newSearch.setSelectionRange(newSearch.value.length, newSearch.value.length); }
     });
   }
   document.querySelectorAll('.adm-view-btn, .adm-row-click').forEach(btn => {
@@ -2471,6 +2473,8 @@ function bindAdminOrders() {
       const content = document.querySelector('.adm-content');
       if (content) content.outerHTML = adminOrders();
       bindAdminOrders();
+      const newSearch = document.getElementById('adm-order-search');
+      if (newSearch) { newSearch.focus(); newSearch.setSelectionRange(newSearch.value.length, newSearch.value.length); }
     });
   }
   const admOrderStatus = document.getElementById('adm-order-status');
@@ -2495,6 +2499,8 @@ function bindAdminAbandoned() {
       const content = document.querySelector('.adm-content');
       if (content) content.outerHTML = adminAbandonedCarts();
       bindAdminAbandoned();
+      const newSearch = document.getElementById('adm-abandoned-search');
+      if (newSearch) { newSearch.focus(); newSearch.setSelectionRange(newSearch.value.length, newSearch.value.length); }
     });
   }
   document.querySelectorAll('[data-cart-id]').forEach(btn => {
