@@ -256,9 +256,9 @@ function mapProduct(p) {
   const sizes = [...new Set(skus.map(s => s.size).filter(Boolean))];
   const imgs = state.storeImages.filter(i => i.numref === p.numref).sort((a, b) => a.image_number - b.image_number);
   const imgUrl = imgs.length > 0 ? proxyImg(imgs[0].image_url || '') : '';
-  const rawPrice = firstSku.price || p.price || '';
+  const rawPrice = p.price || firstSku.price || '';
   const price = rawPrice ? fmtPrice(rawPrice) : '';
-  const oldPrice = firstSku.suggested_price && parseFloat(firstSku.suggested_price) > parseFloat(firstSku.price || 0) ? fmtPrice(firstSku.suggested_price) : '';
+  const oldPrice = firstSku.suggested_price && parseFloat(firstSku.suggested_price) > parseFloat(p.price || firstSku.price || 0) ? fmtPrice(firstSku.suggested_price) : '';
   const badge = oldPrice ? 'Solde' : (p.season && p.season.includes('2026') ? 'Nouveau' : '');
   return {
     name: p.name || 'Sans nom',
@@ -266,7 +266,7 @@ function mapProduct(p) {
     typeLabel: p.sub_department || p.department || '',
     colors: colors.length || 1,
     price,
-    n: parseFloat(firstSku.price || p.price) || 0,
+    n: parseFloat(p.price || firstSku.price) || 0,
     oldPrice,
     badge,
     d: [p.category].filter(Boolean),
@@ -920,9 +920,9 @@ const pagePdp = () => {
   const colorImgs = selectedColor ? allImgs.filter(i => i.color === selectedColor) : [];
   const imgs = colorImgs.length > 0 ? colorImgs : allImgs;
   const firstSku = skus[0] || {};
-  const rawPrice = firstSku.price || p.price || '';
+  const rawPrice = p.price || firstSku.price || '';
   const price = rawPrice ? fmtPrice(rawPrice) : '';
-  const oldPrice = firstSku.suggested_price && parseFloat(firstSku.suggested_price) > parseFloat(firstSku.price || 0) ? fmtPrice(firstSku.suggested_price) : '';
+  const oldPrice = firstSku.suggested_price && parseFloat(firstSku.suggested_price) > parseFloat(p.price || firstSku.price || 0) ? fmtPrice(firstSku.suggested_price) : '';
   const badge = oldPrice ? 'Solde' : (p.season && p.season.includes('2026') ? 'Nouveau' : '');
   const catLabel = CAT_LABELS[(p.category || '').toUpperCase()] || p.category || '';
   const deptKey = (p.category || '').toLowerCase();
@@ -3598,7 +3598,7 @@ function bind() {
         numref: prod.numref || '',
         sku_id: matchedSku.sku_id || '',
         name: prod.name || 'Sans nom',
-        price: parseFloat(matchedSku.price || prod.price) || 0,
+        price: parseFloat(prod.price || matchedSku.price) || 0,
         color, size,
         image_url: mp.image_url,
         qty,
@@ -3800,7 +3800,7 @@ function bind() {
         numref: p.numref || '',
         sku_id: matchedSku.sku_id || '',
         name: p.name || 'Sans nom',
-        price: parseFloat(matchedSku.price || p.price) || 0,
+        price: parseFloat(p.price || matchedSku.price) || 0,
         color, size,
         image_url: mp.image_url,
         qty: 1,
