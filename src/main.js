@@ -201,6 +201,26 @@ async function loadCampaign() {
   state.campaign = data || DEFAULT_CAMPAIGN;
 }
 
+// Coordonnées de la boutique, modifiables dans l'admin (onglet « Nous joindre »).
+// Stockées dans une ligne dédiée de home_campaigns (JSON dans description) pour réutiliser ses règles RLS admin.
+const BOUTIQUE_ROW_ID = 'boutique-info';
+const BOUTIQUE_FIELDS = ['address', 'phone', 'email', 'hours', 'facebook'];
+
+async function loadBoutiqueInfo() {
+  const { data, error } = await supabase.from('home_campaigns').select('description').eq('id', BOUTIQUE_ROW_ID).maybeSingle();
+  if (error) { console.error('loadBoutiqueInfo error:', error); return; }
+  if (!data || !data.description) return;
+  try {
+    const saved = JSON.parse(data.description);
+    BOUTIQUE_FIELDS.forEach(k => { if (typeof saved[k] === 'string' && saved[k].trim()) BOUTIQUE_INFO[k] = saved[k].trim(); });
+  } catch (e) { console.error('loadBoutiqueInfo parse error:', e); }
+}
+
+const esc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const isPending = (v) => !v || v === 'À CONFIRMER';
+const infoHtml = (v) => esc(v).replace(/\n/g, '<br>');
+const mapQuery = () => encodeURIComponent(isPending(BOUTIQUE_INFO.address) ? 'Alma, Quebec, Canada' : BOUTIQUE_INFO.address.replace(/\n/g, ', '));
+
 // ---------- Supabase product loading ----------
 const PAGE_SIZE = 1000;
 
@@ -434,9 +454,9 @@ const footer = () => `
       </div>`).join('')}
     <div>
       <div class="footer-col-title">Nous joindre</div>
-      <a href="mailto:${BOUTIQUE_INFO.email}">${BOUTIQUE_INFO.email}</a>
-      ${BOUTIQUE_INFO.phone !== 'À CONFIRMER' ? `<a href="tel:${BOUTIQUE_INFO.phone.replace(/\s/g,'')}">${BOUTIQUE_INFO.phone}</a>` : `<span class="footer-pending">${BOUTIQUE_INFO.phone}</span>`}
-      ${BOUTIQUE_INFO.address !== 'À CONFIRMER' ? `<span class="footer-addr">${BOUTIQUE_INFO.address}</span>` : `<span class="footer-pending">${BOUTIQUE_INFO.address}</span>`}
+      <a href="mailto:${esc(BOUTIQUE_INFO.email)}">${esc(BOUTIQUE_INFO.email)}</a>
+      ${!isPending(BOUTIQUE_INFO.phone) ? `<a href="tel:${esc(BOUTIQUE_INFO.phone.replace(/[^\d+]/g,''))}">${esc(BOUTIQUE_INFO.phone)}</a>` : `<span class="footer-pending">${esc(BOUTIQUE_INFO.phone)}</span>`}
+      ${!isPending(BOUTIQUE_INFO.address) ? `<span class="footer-addr">${infoHtml(BOUTIQUE_INFO.address)}</span>` : `<span class="footer-pending">${esc(BOUTIQUE_INFO.address)}</span>`}
     </div>
   </div>
   <div class="footer-boutiques">
@@ -1167,7 +1187,7 @@ function pageCheckout() {
             <div class="checkout-radio-body">
               <div class="checkout-radio-title">Ramassage en boutique</div>
               <div class="checkout-radio-price">Gratuit</div>
-              <div class="checkout-radio-detail">Alma, Québec<br>${BOUTIQUE_INFO.hours !== 'À CONFIRMER' ? BOUTIQUE_INFO.hours : 'Heures à confirmer'}</div>
+              <div class="checkout-radio-detail">${!isPending(BOUTIQUE_INFO.address) ? infoHtml(BOUTIQUE_INFO.address) : 'Alma, Québec'}<br>${!isPending(BOUTIQUE_INFO.hours) ? infoHtml(BOUTIQUE_INFO.hours) : 'Heures à confirmer'}</div>
             </div>
           </label>
           <label class="checkout-radio-card" id="fulfillment-delivery">
@@ -1260,6 +1280,7 @@ const ADMIN_TABS = [
   { id: 'orders', label: 'Commandes', icon: 'M9 11H3v9h6v-9zm0-8H3v6h6V3zm12 8h-6v9h6v-9zm0-8h-6v6h6V3z' },
   { id: 'abandoned', label: 'Paniers non finalisés', icon: 'M3 3h2l2.4 12.4a2 2 0 002 1.6h9.2a2 2 0 002-1.6L23 6H6M9 21a1 1 0 100-2 1 1 0 000 2zm9 0a1 1 0 100-2 1 1 0 000 2z' },
   { id: 'newsletter', label: 'Infolettre', icon: 'M22 6l-10 7L2 6M2 4h20v16H2V4z' },
+  { id: 'contact', label: 'Nous joindre', icon: 'M12 21s-7-6.2-7-12a7 7 0 0114 0c0 5.8-7 12-7 12zM12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z' },
   { id: 'campaign', label: 'Campagne', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3' },
 ];
 
@@ -1855,6 +1876,31 @@ function adminCampaign() {
   </div>`;
 }
 
+function adminContact() {
+  const v = (k) => isPending(BOUTIQUE_INFO[k]) ? '' : esc(BOUTIQUE_INFO[k]);
+  return `
+  <div class="adm-content">
+    <div class="adm-topbar"><h1 class="adm-title">Nous joindre</h1></div>
+    <div class="adm-panel adm-campaign-panel">
+      <div class="adm-campaign-head">
+        <h3>Coordonnées de la boutique</h3>
+        <p class="adm-sub">Ces informations s'affichent sur la page Nous joindre, la page Notre histoire, le pied de page et au paiement (ramassage en boutique).</p>
+      </div>
+      <form id="boutique-form" class="campaign-form">
+        <label>Adresse<textarea id="bf-address" rows="2" placeholder="123, rue Principale&#10;Alma (Québec) G8B 1A1">${v('address')}</textarea></label>
+        <div class="form-row">
+          <label>Téléphone<input type="tel" id="bf-phone" placeholder="418 555-1234" value="${v('phone')}"></label>
+          <label>Adresse courriel<input type="email" id="bf-email" required value="${v('email')}"></label>
+        </div>
+        <label>Heures d'ouverture <small>(une ligne par jour ou par groupe de jours)</small><textarea id="bf-hours" rows="7" placeholder="Lundi au mercredi : 9 h 30 à 17 h 30&#10;Jeudi et vendredi : 9 h 30 à 21 h&#10;Samedi : 9 h 30 à 17 h&#10;Dimanche : 12 h à 17 h">${v('hours')}</textarea></label>
+        <label>Lien Facebook<input type="url" id="bf-facebook" value="${v('facebook')}"></label>
+        <div id="boutique-error" class="auth-error" style="display:none;"></div>
+        <button type="submit" class="btn orange">Enregistrer les coordonnées</button>
+      </form>
+    </div>
+  </div>`;
+}
+
 // ---------- Admin: Orders ----------
 const ORDER_STATUS_LABELS = {
   pending_payment: 'Paiement en attente', paid: 'Payé', preparing: 'En préparation',
@@ -2188,6 +2234,8 @@ const pageAdmin = () => {
     content = adminNewsletter();
   } else if (state.adminTab === 'campaign') {
     content = adminCampaign();
+  } else if (state.adminTab === 'contact') {
+    content = adminContact();
   } else {
     content = adminOverview();
   }
@@ -2234,6 +2282,31 @@ async function saveCampaign(e) {
   }
   await loadCampaign();
   alert('Campagne enregistrée avec succès.');
+  render();
+}
+
+async function saveBoutiqueInfo(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('boutique-error');
+  errEl.style.display = 'none';
+  const info = {};
+  BOUTIQUE_FIELDS.forEach(k => { info[k] = document.getElementById('bf-' + k).value.trim(); });
+  const { error } = await supabase.from('home_campaigns').upsert({
+    id: BOUTIQUE_ROW_ID,
+    eyebrow: 'Coordonnées',
+    title: 'Coordonnées de la boutique',
+    description: JSON.stringify(info),
+    enabled: true,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' });
+  if (error) {
+    errEl.textContent = 'Erreur lors de l\'enregistrement: ' + error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+  BOUTIQUE_FIELDS.forEach(k => { BOUTIQUE_INFO[k] = info[k] || 'À CONFIRMER'; });
+  await loadBoutiqueInfo();
+  alert('Coordonnées enregistrées avec succès.');
   render();
 }
 
@@ -2532,8 +2605,8 @@ const routes = {
   '/connexion': pageLogin,
   '/admin': pageAdmin,
   '/commande': pageCheckout,
-  '/a-propos': () => pageAbout,
-  '/nous-joindre': () => pageContact,
+  '/a-propos': () => pageAbout(),
+  '/nous-joindre': () => pageContact(),
 };
 
 function getCurrentPath() {
@@ -2725,14 +2798,14 @@ const pageAbout = () => `
     <h2>La boutique</h2>
     <div class="about-bloc-grid">
       <div class="about-bloc-info">
-        <div><strong>Adresse</strong> <span class="about-pending">${BOUTIQUE_INFO.address}</span></div>
-        <div><strong>Téléphone</strong> <span class="about-pending">${BOUTIQUE_INFO.phone}</span></div>
-        <div><strong>Courriel</strong> <a href="mailto:${BOUTIQUE_INFO.email}">${BOUTIQUE_INFO.email}</a></div>
-        <div><strong>Heures</strong> <span class="about-pending">${BOUTIQUE_INFO.hours}</span></div>
-        <a href="${BOUTIQUE_INFO.facebook}" target="_blank" rel="noopener noreferrer" class="about-fb">Suivez-nous sur Facebook</a>
+        <div><strong>Adresse</strong> <span class="${isPending(BOUTIQUE_INFO.address) ? 'about-pending' : ''}">${infoHtml(BOUTIQUE_INFO.address)}</span></div>
+        <div><strong>Téléphone</strong> ${isPending(BOUTIQUE_INFO.phone) ? `<span class="about-pending">${esc(BOUTIQUE_INFO.phone)}</span>` : `<a href="tel:${esc(BOUTIQUE_INFO.phone.replace(/[^\d+]/g,''))}">${esc(BOUTIQUE_INFO.phone)}</a>`}</div>
+        <div><strong>Courriel</strong> <a href="mailto:${esc(BOUTIQUE_INFO.email)}">${esc(BOUTIQUE_INFO.email)}</a></div>
+        <div><strong>Heures</strong> <span class="${isPending(BOUTIQUE_INFO.hours) ? 'about-pending' : ''}">${infoHtml(BOUTIQUE_INFO.hours)}</span></div>
+        <a href="${esc(BOUTIQUE_INFO.facebook)}" target="_blank" rel="noopener noreferrer" class="about-fb">Suivez-nous sur Facebook</a>
       </div>
       <div class="about-bloc-map">
-        <iframe src="https://www.google.com/maps?q=Alma,Quebec,Canada&output=embed" width="100%" height="350" style="border:0;border-radius:12px;" loading="lazy" title="Carte"></iframe>
+        <iframe src="https://www.google.com/maps?q=${mapQuery()}&output=embed" width="100%" height="350" style="border:0;border-radius:12px;" loading="lazy" title="Carte"></iframe>
       </div>
     </div>
   </section>
@@ -2753,15 +2826,15 @@ const pageContact = () => `
   <div class="contact-content">
     <div class="contact-info">
       <h2>Adresse</h2>
-      <p class="about-pending">${BOUTIQUE_INFO.address}</p>
+      <p class="${isPending(BOUTIQUE_INFO.address) ? 'about-pending' : ''}">${infoHtml(BOUTIQUE_INFO.address)}</p>
       <h2>Téléphone</h2>
-      <p class="about-pending">${BOUTIQUE_INFO.phone}</p>
+      <p>${isPending(BOUTIQUE_INFO.phone) ? `<span class="about-pending">${esc(BOUTIQUE_INFO.phone)}</span>` : `<a href="tel:${esc(BOUTIQUE_INFO.phone.replace(/[^\d+]/g,''))}">${esc(BOUTIQUE_INFO.phone)}</a>`}</p>
       <h2>Courriel</h2>
-      <p><a href="mailto:${BOUTIQUE_INFO.email}">${BOUTIQUE_INFO.email}</a></p>
+      <p><a href="mailto:${esc(BOUTIQUE_INFO.email)}">${esc(BOUTIQUE_INFO.email)}</a></p>
       <h2>Heures d'ouverture</h2>
-      <p class="about-pending">${BOUTIQUE_INFO.hours}</p>
+      <p class="${isPending(BOUTIQUE_INFO.hours) ? 'about-pending' : ''}">${infoHtml(BOUTIQUE_INFO.hours)}</p>
       <h2>Facebook</h2>
-      <p><a href="${BOUTIQUE_INFO.facebook}" target="_blank" rel="noopener noreferrer">Attitude Sports sur Facebook</a></p>
+      <p><a href="${esc(BOUTIQUE_INFO.facebook)}" target="_blank" rel="noopener noreferrer">Attitude Sports sur Facebook</a></p>
     </div>
     <div class="contact-form-wrap">
       <h2>Écrivez-nous</h2>
@@ -2776,7 +2849,7 @@ const pageContact = () => `
     </div>
   </div>
   <div class="contact-map">
-    <iframe src="https://www.google.com/maps?q=Alma,Quebec,Canada&output=embed" width="100%" height="350" style="border:0;border-radius:12px;" loading="lazy" title="Carte"></iframe>
+    <iframe src="https://www.google.com/maps?q=${mapQuery()}&output=embed" width="100%" height="350" style="border:0;border-radius:12px;" loading="lazy" title="Carte"></iframe>
   </div>
 </main>`;
 
@@ -3515,6 +3588,8 @@ function bind() {
 
   const campaignForm = document.getElementById('campaign-form');
   if (campaignForm) campaignForm.addEventListener('submit', saveCampaign);
+  const boutiqueForm = document.getElementById('boutique-form');
+  if (boutiqueForm) boutiqueForm.addEventListener('submit', saveBoutiqueInfo);
 
   const exportCsvBtn = document.getElementById('adm-export-csv');
   if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportInventoryCSV);
@@ -4160,7 +4235,7 @@ function redirectOldHashUrls() {
   const { data } = await supabase.auth.getSession();
   state.session = data.session;
   await loadProducts();
-  await loadCampaign();
+  await Promise.all([loadCampaign(), loadBoutiqueInfo()]);
   if (state.session) await loadAdminProducts();
   render();
 })();
